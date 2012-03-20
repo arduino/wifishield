@@ -18,7 +18,7 @@
  * Analog sensor attached to analog in 0
  * Wifi shield attached to pins 10, 11, 12, 13
  
- created 9 March 2012
+ created 16 March 2012
  by Tom Igoe
  
  This code is in the public domain.
@@ -30,31 +30,40 @@
 
 #define APIKEY         "YOUR API KEY GOES HERE" // replace your pachube api key here
 #define FEEDID         00000                    // replace your feed ID
-#define USERAGENT      "My Project"             // user agent is the project name
+#define USERAGENT      "My Arduino Project"     // user agent is the project name
 
 char ssid[] = "yourNetwork";      //  your network SSID (name) 
 char pass[] = "secretPassword";   // your network password
-int status = WL_IDLE_STATUS
+
+int status = WL_IDLE_STATUS;
 
 // initialize the library instance:
 WiFiClient client;
-IPAddress server(216,52,233,122);
-//char server[] = "api.pachube.com";
+
+// if you don't want to use DNS (and reduce your sketch size)
+// use the numeric IP instead of the name for the server:
+//IPAddress server(216,52,233,122);      // numeric IP for api.pachube.com
+char server[] = "api.pachube.com";   // name address for pachube API
 
 unsigned long lastConnectionTime = 0;          // last time you connected to the server, in milliseconds
 boolean lastConnected = false;                 // state of the connection last time through the main loop
 const unsigned long postingInterval = 10*1000;  //delay between updates to Pachube.com
 
 void setup() {
-  // start serial port:
   Serial.begin(9600);
+  Serial.println("Attempting to connect to Wifi network...");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
+
   status = WiFi.begin(ssid, pass);
   if ( status != WL_CONNECTED) { 
     Serial.println("Couldn't get a wifi connection");
+    // stop here and do nothing:
     while(true);
   } 
   else {
     Serial.println("Connected to wifi");
+    printWifiStatus();
   }
 }
 
@@ -107,17 +116,18 @@ void sendData(String thisData) {
     client.print("PUT /v2/feeds/");
     client.print(FEEDID);
     client.println(".csv HTTP/1.1");
-    client.print("Host: api.pachube.com\n");
+    client.println("Host: api.pachube.com");
     client.print("X-PachubeApiKey: ");
     client.println(APIKEY);
     client.print("User-Agent: ");
     client.println(USERAGENT);
     client.print("Content-Length: ");
-    client.println(thisData.length(), DEC);
+    client.println(thisData.length());
 
     // last pieces of the HTTP PUT request:
-    client.print("Content-Type: text/csv\n");
-    client.println("Connection: close\n");
+    client.println("Content-Type: text/csv");
+    client.println("Connection: close");
+    client.println();
 
     // here's the actual content of the PUT request:
     client.println(thisData);
@@ -129,7 +139,25 @@ void sendData(String thisData) {
     Serial.println("disconnecting.");
     client.stop();
   }
-  // note the time that the connection was made:
+  // note the time that the connection was made or attempted:
   lastConnectionTime = millis();
-  lastConnected = client.connected();
 }
+
+
+void printWifiStatus() {
+  // print the SSID of the network you're attached to:
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+
+  // print your WiFi shield's IP address:
+  IPAddress ip = WiFi.localIP();
+  Serial.print("IP Address: ");
+  Serial.println(ip);
+
+  // print the received signal strength:
+  long rssi = WiFi.RSSI();
+  Serial.print("signal strength (RSSI):");
+  Serial.print(rssi);
+  Serial.println(" dBm");
+}
+

@@ -13,7 +13,7 @@
  Circuit:
  * WiFi shield attached to pins 10, 11, 12, 13
  
- created 9 Mar 2012
+ created 15 Mar 2012
  by Tom Igoe
  
  This code is in the public domain.
@@ -24,6 +24,7 @@
 
 char ssid[] = "YourNetwork"; //  your network SSID (name) 
 char pass[] = "password";    // your network password (use for WPA, or use as key for WEP)
+
 int keyIndex = 0;            // your network key Index number (needed only for WEP)
 int status = WL_IDLE_STATUS; // status of the wifi connection
 
@@ -32,10 +33,13 @@ WiFiClient client;
 
 const unsigned long requestInterval = 30*1000;    // delay between requests; 30 seconds
 
-IPAddress server(199,59,149,200);      // api.twitter.com
+// if you don't want to use DNS (and reduce your sketch size)
+// use the numeric IP instead of the name for the server:
+//IPAddress server(199,59,149,200);    // numeric IP for api.twitter.com
+char server[] = "api.twitter.com";     // name address for twitter API
 
 boolean requested;                     // whether you've made a request since connecting
-unsigned long lastAttemptTime = 0;              // last time you connected to the server, in milliseconds
+unsigned long lastAttemptTime = 0;     // last time you connected to the server, in milliseconds
 
 String currentLine = "";               // string to hold the text from server
 String tweet = "";                     // string to hold the tweet
@@ -48,31 +52,25 @@ void setup() {
   // initialize serial:
   Serial.begin(9600);
   Serial.println("Attempting to connect to WPA network...");
-  Serial.print("SSID: ");
-  Serial.println(ssid);
-
+  
   status = WiFi.begin(ssid, pass);
   if ( status != WL_CONNECTED) { 
     Serial.println("Couldn't get a wifi connection");
+    // stop here and do nothing:
     while(true);
   } 
-  else {
+ else {
     Serial.println("Connected to wifi");
     printWifiStatus();
     connectToServer();
   }
 }
-
-
-
 void loop()
 {
   if (client.connected()) {
     if (client.available()) {
       // read incoming bytes:
       char inChar = client.read();
-      // print the incoming byte (for debugging):
-      Serial.write(inChar);
 
       // add incoming byte to end of line:
       currentLine += inChar; 
@@ -87,6 +85,8 @@ void loop()
         // tweet is beginning. Clear the tweet string:
         readingTweet = true; 
         tweet = "";
+        // break out of the loop so this character isn't added to the tweet:
+        return;
       }
       // if you're currently reading the bytes of a tweet,
       // add them to the tweet String:
@@ -118,7 +118,7 @@ void connectToServer() {
   if (client.connect(server, 80)) {
     Serial.println("making HTTP request...");
     // make HTTP GET request to twitter:
-    client.println("GET /1/statuses/user_timeline.xml?screen_name=arduinoteam HTTP/1.1");
+    client.println("GET /1/statuses/user_timeline.xml?screen_name=arduino HTTP/1.1");
     client.println("Host:api.twitter.com");
     client.println("Connection:close");
     client.println();
@@ -144,5 +144,6 @@ void printWifiStatus() {
   Serial.print(rssi);
   Serial.println(" dBm");
 }
+
 
 
