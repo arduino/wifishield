@@ -11,7 +11,7 @@
 #include "gpio.h"
 #include "debug.h"
 #include "ARDUINO/arduino.h"
-#define INIT_SIGNAL_FOR_SPI() 	gpio_enable_pin_pull_up(ARDUINO_HANDSHAKE_PIN)
+#define INIT_SIGNAL_FOR_SPI() 	gpio_disable_pin_pull_up(ARDUINO_HANDSHAKE_PIN);
 #define BUSY_FOR_SPI() 			gpio_set_gpio_pin(ARDUINO_HANDSHAKE_PIN)
 #define AVAIL_FOR_SPI() 		gpio_clr_gpio_pin(ARDUINO_HANDSHAKE_PIN)
 
@@ -36,6 +36,10 @@
 #define SIGN2_DN 		LED2_DN
 #define SIGN2_TL 		LED2_TL
 
+#define DEB_PIN_UP() 			gpio_set_gpio_pin(DEB_PIN_GPIO)
+#define DEB_PIN_DN() 			gpio_clr_gpio_pin(DEB_PIN_GPIO)
+#define DEB_PIN_ENA() 			gpio_enable_gpio_pin(DEB_PIN_GPIO);
+
 #else
 #define SIGN0_UP()
 #define SIGN0_DN()
@@ -46,6 +50,11 @@
 #define SIGN2_UP()
 #define SIGN2_DN()
 #define SIGN2_TL()
+
+#define DEB_PIN_UP()
+#define DEB_PIN_DN()
+#define DEB_PIN_ENA()
+
 //#define TOGGLE_SIG0
 #endif
 
@@ -188,10 +197,23 @@
 		GET_PARAM_##TYPE(PARAM, DATA)		\
 		NEXT_PARAM(PARAM)
 
+#ifdef _SPI_STATS_
 #define STATSPI_TIMEOUT_ERROR()		\
 		statSpi.timeoutIntErr++;	\
 		statSpi.rxErr++;			\
 		statSpi.lastError = err;	\
+		statSpi.status = spi_getStatus(ARD_SPI);
+
+#define STATSPI_DISALIGN_ERROR()		\
+		statSpi.frameDisalign++;	\
+		statSpi.rxErr++;			\
+		statSpi.lastError = SPI_ALIGN_ERROR;	\
+		statSpi.status = spi_getStatus(ARD_SPI);
+
+#define STATSPI_OVERRIDE_ERROR()		\
+		statSpi.overrideFrame++;	\
+		statSpi.rxErr++;			\
+		statSpi.lastError = SPI_OVERRIDE_ERROR;	\
 		statSpi.status = spi_getStatus(ARD_SPI);
 
 #define STATSPI_TX_TIMEOUT_ERROR()	\
@@ -199,6 +221,12 @@
 		statSpi.txErr++;			\
 		statSpi.lastError = SPI_ERROR_TIMEOUT;	\
 		statSpi.status = spi_getStatus(ARD_SPI);
+#else
+#define STATSPI_TIMEOUT_ERROR()
+#define STATSPI_TX_TIMEOUT_ERROR()
+#define STATSPI_DISALIGN_ERROR()
+#define STATSPI_OVERRIDE_ERROR()
+#endif
 
 #define DUMP_TCP_STATE(TTCP) \
 		INFO_TCP("ttcp:%p tpcb:%p state:%d lpcb:%p state:%d\n", \
@@ -222,13 +250,15 @@ void insert_pBuf(struct pbuf* q, uint8_t sock, void* _pcb);
 
 tData* get_pBuf(uint8_t sock);
 
-void freetData(void * buf);
+void freetData(void * buf, uint8_t sock);
+
+void freetDataIdx(uint8_t idxBuf, uint8_t sock);
 
 bool isBufAvail();
 
 bool getTcpData(uint8_t sock, void** payload, uint16_t* len);
 
-bool getTcpDataByte(uint8_t sock, uint8_t* payload);
+bool getTcpDataByte(uint8_t sock, uint8_t* payload, uint8_t peek);
 
 bool isAvailTcpDataByte(uint8_t sock);
 

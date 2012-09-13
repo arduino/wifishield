@@ -37,9 +37,10 @@ typedef enum {
 	CMD_IMM_SET_FLAG = 0x04,
 }cmd_flags;
 
-#define TIMEOUT_SPI  	200
-//#define TIMEOUT_SENT_REPLY 1000
-#define DUMMY_DATA	0xFF
+#define TIMEOUT_SPI  		200
+#define SPI_ALIGN_ERROR		0xF0
+#define SPI_OVERRIDE_ERROR	0xF1
+#define DUMMY_DATA			0xFF
 
 typedef int (*cmd_spi_cb_t)(int numParam, char* buf, void* ctx);
 typedef cmd_spi_state_t (*cmd_spi_rcb_t)(char* recv, char* reply, void* ctx, uint16_t* _count);
@@ -56,18 +57,14 @@ void spi_poll(struct netif* netif);
 
 int spi_slaveReceive(volatile avr32_spi_t *spi);
 
-cmd_state_t cmd_statSpi(int argc, char* argv[], void* ctx);
-
-cmd_state_t cmd_resetStatSpi(int argc, char* argv[], void* ctx);
-
-cmd_state_t cmd_gethostbyname(int argc, char* argv[], void* ctx);
-
-cmd_state_t cmd_setDnsServer(int argc, char* argv[], void* ctx);
-
 void showTTCPstatus();
 
 int getSock(void * _ttcp);
 
+void* getTTCP(uint8_t sock);
+
 void clearMapSockTcp(uint8_t sock);
+
+int start_server_tcp(uint16_t port, uint8_t sock);
 
 #endif /* ARD_SPI_H_ */

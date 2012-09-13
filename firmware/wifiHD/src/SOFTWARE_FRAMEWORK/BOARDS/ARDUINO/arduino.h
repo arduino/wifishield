@@ -92,6 +92,7 @@
 #define LED0_GPIO   AVR32_PIN_PB19
 #define LED1_GPIO   AVR32_PIN_PB20
 #define LED2_GPIO   AVR32_PIN_PB21
+#define DEB_PIN_GPIO AVR32_PIN_PA20
 //! @}
 
 /*! \name PWM Channels of LEDs
@@ -198,6 +199,7 @@
 
 /* Pin related to shield communication */
  #define ARDUINO_HANDSHAKE_PIN 		AVR32_PIN_PA25
+ #define ARDUINO_EXTINT_PIN 		AVR32_PIN_PA04		//not used
 
  #define AVR32_PDCA_PID_TX 			AVR32_PDCA_PID_SPI1_TX
  #define AVR32_PDCA_PID_RX 			AVR32_PDCA_PID_SPI1_RX

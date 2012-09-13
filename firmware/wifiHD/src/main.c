@@ -38,8 +38,8 @@
 #include "ard_utils.h"
 #include <lwip_setup.h>
 
-
-//void board_init(void);
+/* FIRMWARE version */
+const char* fwVersion = "1.0.0";
 
 #if BOARD == ARDUINO
 #if !defined(DATAFLASH)
@@ -83,17 +83,20 @@ struct ctx_server {
 	uint8_t wl_init_complete;
 };
 
-// to maintain the word alignment
-//#define PAD_CTX_SIZE 	0x18
-//#define PAD_NETIF_SIZE 	0x3c
-#define PAD_CTX_SIZE 	0
-#define PAD_NETIF_SIZE 	0
+bool ifStatus = false;
+bool scanNetCompleted = false;
 
 static bool initSpiComplete = false;
 
 // variable used as enable flag for debug prints
+#ifdef _DEBUG_
+uint16_t enableDebug = DEFAULT_INFO_FLAG | INFO_WARN_FLAG;// | INFO_SPI_FLAG;
+uint16_t verboseDebug = 0;
+#else
 uint16_t enableDebug = DEFAULT_INFO_FLAG;
 uint16_t verboseDebug = 0;
+#endif
+
 
 /**
  *
@@ -101,7 +104,8 @@ uint16_t verboseDebug = 0;
 static void
 wl_cm_scan_cb(void* ctx)
 {
-    set_result(WL_SCAN_COMPLETED);
+	INFO_INIT("Scan Completed!\n");
+    scanNetCompleted=true;
 }
 
 /**
@@ -157,13 +161,14 @@ wl_cm_disconn_cb(void* ctx)
      set_result_cmd(WL_FAILURE);
 }
 
-
+#if 0
 static void wl_cm_err_cb(void* ctx)
 {
     int err = *(int*)ctx;
     WARN("Error: %d\n", err);
     set_result_cmd(err);
 }
+#endif
 
 /**
  *
@@ -174,8 +179,11 @@ ip_status_cb(struct netif* netif)
 	INFO_INIT("IP status cb...\n");
         if (netif_is_up(netif)) {
             set_result_cmd(WL_SUCCESS);
-                printk("bound to %s\n", ip2str(netif->ip_addr));
+            printk("bound to %s\n", ip2str(netif->ip_addr));
+            ifStatus = true;
         }else{
+        	ifStatus = false;
+        	closeConnections();
         	WARN("Interface not up!\n");
         }
 }
@@ -193,9 +201,6 @@ led_init(void)
 	LINK_LED_OFF();
 	ERROR_LED_OFF();
 	DATA_LED_OFF();
-
-    //LED_Off(LED1);
-    //LED_Off(LED2);
 }
 
 
@@ -295,13 +300,14 @@ void initShell()
         console_add_cmd("wpass", cmd_setpass, NULL);
         console_add_cmd("dpass", cmd_delpass, NULL);
 #endif
-#ifdef STAT_SPI
+#ifdef _SPI_STATS_
         console_add_cmd("spiStat", cmd_statSpi, NULL);
         console_add_cmd("resetSpiStat", cmd_resetStatSpi, NULL);
 #endif
 #ifdef _DNS_CMD_
         console_add_cmd("getHost", cmd_gethostbyname, NULL);
         console_add_cmd("setDNS", cmd_setDnsServer, NULL);
+        console_add_cmd("startTcpSrv", cmd_startTcpSrv, NULL);
 #endif
 }
 
@@ -329,13 +335,11 @@ wl_init_complete_cb(void* ctx)
 
     INFO_INIT("Starting CM...\n");
     /* start connection manager */
-    wl_status = wl_cm_init(NULL, wl_cm_conn_cb, wl_cm_disconn_cb, hs);
+    wl_status = wl_cm_init(wl_cm_scan_cb, wl_cm_conn_cb, wl_cm_disconn_cb, hs);
     ASSERT(wl_status == WL_SUCCESS, "failed to init wl conn mgr");
     wl_cm_start();
 
     wl_scan();
-
-    initShell();
 
     if (initSpi()){
     	WARN("Spi not initialized\n");
@@ -352,6 +356,10 @@ void startup_init(void)
 {
 	INIT_SIGNAL_FOR_SPI();
 	BUSY_FOR_SPI();
+
+	// if DEBUG enabled use DEB_PIN_GPIO for debug purposes
+    DEB_PIN_ENA();
+    DEB_PIN_UP();
 }
 
 /**
@@ -373,6 +381,8 @@ main(void)
 
     tc_init();
 
+    initShell();
+
     delay_init(FOSC0);
 
 #ifdef _TEST_SPI_
@@ -388,11 +398,11 @@ main(void)
 #else
     printk("Arduino Wifi Startup... [%s]\n", __TIMESTAMP__);
 
-    size_t size_ctx_server = sizeof(struct ctx_server)+PAD_CTX_SIZE;
+    size_t size_ctx_server = sizeof(struct ctx_server);
 	hs = calloc(1, size_ctx_server);
 	ASSERT(hs, "out of memory");
 
-	size_t size_netif = sizeof(struct netif)+PAD_NETIF_SIZE;
+	size_t size_netif = sizeof(struct netif);
 	hs->net_cfg.netif = calloc(1, size_netif);
 	ASSERT(hs->net_cfg.netif, "out of memory");
 

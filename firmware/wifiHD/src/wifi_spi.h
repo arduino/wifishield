@@ -53,10 +53,15 @@ enum {
 	GET_IDX_ENCT_CMD	= 0x33,
 	REQ_HOST_BY_NAME_CMD= 0x34,
 	GET_HOST_BY_NAME_CMD= 0x35,
+	START_SCAN_NETWORKS	= 0x36,
+	GET_FW_VERSION_CMD	= 0x37,
+	GET_TEST_CMD		= 0x38,
+
     // All command with DATA_FLAG 0x40 send a 16bit Len
 
 	SEND_DATA_TCP_CMD		= 0x44,
     GET_DATABUF_TCP_CMD		= 0x45,
+
 };
 
 #if 0
