@@ -1,2 +1,9 @@
 
 libraries/.DS_Store
+*.d
+*.o
+*.map
+*.eep
+*.lss
+*.map
+*.srec

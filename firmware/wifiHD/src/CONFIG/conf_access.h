@@ -154,7 +154,7 @@
 //! @{
 #define ACCESS_USB           DISABLED //!< MEM <-> USB interface.
 #define ACCESS_MEM_TO_RAM    ENABLED  //!< MEM <-> RAM interface.
-#define ACCESS_STREAM        ENABLED  //!< Streaming MEM <-> MEM interface.	//mlf
+#define ACCESS_STREAM        DISABLED //!< Streaming MEM <-> MEM interface.
 #define ACCESS_STREAM_RECORD DISABLED //!< Streaming MEM <-> MEM interface in record mode.
 #define ACCESS_MEM_TO_MEM    DISABLED //!< MEM <-> MEM interface.
 #define ACCESS_CODEC         DISABLED //!< Codec interface.
