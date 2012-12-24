@@ -369,7 +369,8 @@ static err_t atcp_poll(void *arg, struct tcp_pcb *pcb) {
 
 static err_t atcp_poll_conn(void *arg, struct tcp_pcb *pcb) {
 	struct ttcp* _ttcp = arg;
-	++tcp_poll_retries;
+	if (pending_close)
+		++tcp_poll_retries;
 
 	if (tcp_poll_retries > 8) {
 		WARN("ARD TCP [%p-%p] arg=%p retries=%d\n",
