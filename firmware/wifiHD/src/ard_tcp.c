@@ -346,8 +346,8 @@ static err_t atcp_poll(void *arg, struct tcp_pcb *pcb) {
 	    return ERR_ABRT;
 	}
 
-	WARN("ARD TCP [%p-%p] arg=%p retries=%d pend.close:%d\n", (_ttcp)?_ttcp->tpcb:0, pcb, arg,
-			tcp_poll_retries, pending_close);
+	WARN("ARD TCP [%p-%p] arg=%p retries=%d pend.close:%d len:%d\n", (_ttcp)?_ttcp->tpcb:0, pcb, arg,
+			tcp_poll_retries, pending_close, (_ttcp)?_ttcp->left:0);
 	if (_ttcp) tcp_send_data(_ttcp);
 
 	if (pending_close)
@@ -660,7 +660,7 @@ int ard_tcp_start(struct ip_addr addr, uint16_t port, void *opaque,
 	ttcp->port = port;
 	ttcp->nbuf = nbuf;
 	ttcp->mode = mode;
-	ttcp->left = nbuf * buflen;
+	ttcp->left = 0;
 	ttcp->done_cb = done_cb;
 	ttcp->opaque = opaque;
 	ttcp->udp = udp;
