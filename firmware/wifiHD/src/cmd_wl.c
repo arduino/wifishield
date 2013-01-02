@@ -43,6 +43,8 @@
 #include "lwip/dns.h"
 #include "debug.h"
 #include "ard_spi.h"
+#include "ard_tcp.h"
+#include "ard_utils.h"
 
 extern void showTTCPstatus();
 
@@ -373,14 +375,15 @@ cmd_setDnsServer(int argc, char* argv[], void* ctx)
  *
  */
 cmd_state_t
-cmd_startTcpSrv(int argc, char* argv[], void* ctx)
+cmd_startSrv(int argc, char* argv[], void* ctx)
 {
-        const char *usage = "usage: startTcpSrv <port> <sock>\n";
+        const char *usage = "usage: startSrv <port> <sock> <tcp(0)/udp(1)>\n";
 
         int port = 0;
         int sock = 0;
+		int protMode = 0;
 
-        if (argc < 3) {
+        if (argc < 4) {
                 printk(usage);
                 return CMD_DONE;
         }
@@ -389,15 +392,50 @@ cmd_startTcpSrv(int argc, char* argv[], void* ctx)
         port = atoi(argv[1]);
         /* socket index */
         sock = atoi(argv[2]);
+		/* Protocol Mode */
+		protMode = atoi(argv[3]);
 
-        printk("Start TCP server on port %d sock %d\n", port, sock);
-        if (start_server_tcp(port, sock) != -1)
+        printk("Start %s server on port %d sock %d\n", ProtMode2Str(protMode), port, sock);
+        if (start_server_tcp(port, sock, protMode) == -1)
         {
-        	printk("Start TCP server on port %d sock %d FAILED\n", port, sock);
+        	WARN("Start %s server on port %d sock %d FAILED\n", ProtMode2Str(protMode), port, sock);
         }
         return CMD_DONE;
 }
 
+/**
+ *
+ */
+cmd_state_t
+cmd_startCli(int argc, char* argv[], void* ctx)
+{
+        const char *usage = "usage: startCli <ipaddr> <port> <sock> <tcp(0)/udp(1)>\n";
+		struct ip_addr addr = {0};
+        int port = 0;
+        int sock = 0;
+		int protMode = 0;
+
+        if (argc < 5) {
+                printk(usage);
+                return CMD_DONE;
+        }
+
+        /* IP address */
+        addr = str2ip(argv[1]);
+        /* TCP port */
+        port = atoi(argv[2]);
+        /* socket index */
+        sock = atoi(argv[3]);
+		/* Protocol Mode */
+		protMode = atoi(argv[4]);
+
+        printk("Start client on addr 0x%x, port %d sock %d mode %d\n", addr, port, sock, protMode);
+        if (start_client_tcp(addr.addr, port, sock, protMode) == -1)
+        {
+        	WARN("Start client on port %d sock %d prot %d mode %d FAILED\n", port, sock, protMode);
+        }
+        return CMD_DONE;
+}
 
 #endif
 
@@ -632,4 +670,76 @@ cmd_debug(int argc, char* argv[], void* ctx)
         	CHECK_VERB_DEBUG(level, INFO_WARN_FLAG);
         }
         return CMD_DONE;
+}
+
+extern void dumpPbuf(uint8_t sock);
+
+/**
+ *
+ */
+cmd_state_t
+cmd_dumpBuf(int argc, char* argv[], void* ctx)
+{
+    const char *usage = "usage: dumpPbuf [sock]\n\t"\
+    		"sock: socket Number\n";
+
+    if (argc == 2 && strcmp(argv[1], "all") == 0) {
+    	printk("Dump All Buffers\n");
+    	int i = 0;
+    	for (; i<MAX_SOCK_NUM; ++i)
+    	{
+			printk("Socket: %d\n", i);
+    		dumpPbuf(i);
+    	}
+    }else if (argc == 2) {
+    	uint8_t sock = atoi(argv[1]);
+        printk("Socket: %d\n", sock);
+        dumpPbuf(sock);
+    }else {
+		printk(usage);
+	}		
+	return CMD_DONE;
+}
+
+/**
+ *
+ */
+cmd_state_t
+cmd_sendUdpData(int argc, char* argv[], void* ctx)
+{
+	const char pattern[]={'M', 'I', 'M', 'L', 'F', 'D'};
+	const char* pattern2[]={"Prova", "1234567890","FineTest"};
+    const char *usage = "usage: sendUdp [sock]\n\t"\
+    		"sock: socket Number\n";
+
+    if (argc < 2)
+    	printk(usage);
+
+    if (argc >= 2) {
+
+		uint8_t sock = atoi(argv[1]);
+		printk("Socket: %d\n", sock);
+
+		if (argc >= 3) {
+			uint8_t patternType = atoi(argv[2]);
+			printk("PatternType: %d\n", patternType);
+			if (patternType == 1)
+			{
+				insertBuf(sock, (uint8_t*)pattern2[0], strlen(pattern2[0]));
+				insertBuf(sock, (uint8_t*)pattern2[1], strlen(pattern2[1]));
+				insertBuf(sock, (uint8_t*)pattern2[2], strlen(pattern2[2]));
+			}
+			if (patternType == 2)
+			{
+				mergeBuf(sock, NULL, NULL);
+			}
+		}else{
+			if (sock < MAX_SOCK_NUM)
+			{
+				sendUdpData(getTTCP(sock), (uint8_t*)pattern, sizeof(pattern)/sizeof(char));
+			}
+		}
+
+    }
+	return CMD_DONE;
 }

@@ -89,6 +89,30 @@ printk("I-[%s] " msg , __func__ , ##args );	\
 #define WARN(msg, args...) do {		} while (0)
 #endif
 
+#define IF_DEBUG(X,Y) do { 			\
+if (enableDebug & INFO_##X##_FLAG) \
+Y;	\
+} while (0)
+
+#define IF_DEBUG_VER(X,Y) do { 			\
+if ((enableDebug & INFO_##X##_FLAG)&&(verboseDebug & INFO_##X##_FLAG)) \
+Y;	\
+} while (0)
+
+#define IF_WARN_VER(X) do { 			\
+if ((enableDebug & INFO_WARN_FLAG)&&(verboseDebug & INFO_WARN_FLAG)) \
+	X;	\
+} while (0)
+
+#define IF_WARN(Y) IF_DEBUG(WARN,Y)
+#define IF_WARN_VER(Y) IF_DEBUG_VER(WARN,Y)
+#define IF_TCP(Y) IF_DEBUG(TCP,Y)
+#define IF_TCP_VER(Y) IF_DEBUG_VER(TCP,Y)
+#define IF_SPI(Y) IF_DEBUG(SPI,Y)
+#define IF_SPI_VER(Y) IF_DEBUG_VER(SPI,Y)
+#define IF_UTIL(Y) IF_DEBUG(UTIL,Y)
+#define IF_UTIL_VER(Y) IF_DEBUG_VER(UTIL,Y)
+
 extern void dump(char* _buf, uint16_t _count);
 
 #ifdef _APP_DEBUG_

@@ -62,6 +62,8 @@ uint8_t getModeTcp(void* p);
 
 int sendTcpData(void* p, uint8_t* buf, uint16_t len);
 
+int sendUdpData(void* p, uint8_t* buf, uint16_t len);
+
 uint8_t isDataSent(void* p );
 
 cmd_state_t cmd_ttcp(int argc, char* argv[], void* ctx);

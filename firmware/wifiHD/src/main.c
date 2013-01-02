@@ -287,6 +287,7 @@ void initShell()
         console_add_cmd("setkey", cmd_setkey, NULL);
         console_add_cmd("status", cmd_status, NULL);
         console_add_cmd("debug", cmd_debug, NULL);
+        console_add_cmd("dumpBuf", cmd_dumpBuf, NULL);
 
 #ifdef ADD_CMDS
         console_add_cmd("powersave", cmd_power, NULL);
@@ -307,8 +308,11 @@ void initShell()
 #ifdef _DNS_CMD_
         console_add_cmd("getHost", cmd_gethostbyname, NULL);
         console_add_cmd("setDNS", cmd_setDnsServer, NULL);
-        console_add_cmd("startTcpSrv", cmd_startTcpSrv, NULL);
 #endif
+        console_add_cmd("startSrv", cmd_startSrv, NULL);
+        console_add_cmd("startCli", cmd_startCli, NULL);
+        console_add_cmd("sendUdp", cmd_sendUdpData, NULL);
+
 }
 
 /**
@@ -359,7 +363,9 @@ void startup_init(void)
 
 	// if DEBUG enabled use DEB_PIN_GPIO for debug purposes
     DEB_PIN_ENA();
+	DEB_PIN_ENA(2);
     DEB_PIN_UP();
+	DEB_PIN_UP(2);
 }
 
 /**

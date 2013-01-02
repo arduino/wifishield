@@ -281,12 +281,14 @@ void closeConnections()
 		if (p)
 		{
 			ttcp_t* _ttcp = (ttcp_t* )p;
-
-			INFO_TCP("Closing connections tpcb[%p] state:0x%x - lpcb[%p] state: 0x%x\n",
-					_ttcp->tpcb, _ttcp->tpcb->state, _ttcp->lpcb, _ttcp->lpcb->state);
-			//tcp_close(_ttcp->tpcb);
-			ard_tcp_destroy(_ttcp);
-	    	clearMapSockTcp(getSock(_ttcp));
+			if (_ttcp->udp == TCP_MODE)
+			{
+				INFO_TCP("Closing connections tpcb[%p] state:0x%x - lpcb[%p] state: 0x%x\n",
+						_ttcp->tpcb, _ttcp->tpcb->state, _ttcp->lpcb, _ttcp->lpcb->state);
+				//tcp_close(_ttcp->tpcb);
+				ard_tcp_destroy(_ttcp);
+				clearMapSockTcp(getSock(_ttcp));
+			}
 		}
 	}
 }
@@ -567,6 +569,32 @@ static void udp_send_data(struct ttcp* ttcp) {
  * Only used in UDP mode. Will finalize the ttcp process when an end marker
  * is seen.
  */
+static void audp_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p,
+		struct ip_addr *addr, u16_t port) {
+	struct ttcp* ttcp = arg;
+
+	/* for print_stats() */
+	ttcp->recved += p->tot_len;
+	DUMP(p->payload,p->tot_len);
+	if (ttcp->verbose) {
+		printk(".");
+		if (ttcp->print_cnt % 80 == 0)
+			printk("\n");
+		ttcp->print_cnt++;
+	}
+	INFO_TCP("UDP Insert %p sock:%d addr:%s port:%d\n", p, ttcp->sock,
+			ip2str(*addr), port);
+	insert_pBuf(p, ttcp->sock, (void*) upcb);
+	setRemoteClient(ttcp->sock, addr->addr, port);
+
+	out: pbuf_free(p);
+}
+
+
+/**
+ * Only used in UDP mode. Will finalize the ttcp process when an end marker
+ * is seen.
+ */
 static void udp_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p,
 		struct ip_addr *addr, u16_t port) {
 	struct ttcp* ttcp = arg;
@@ -590,6 +618,7 @@ static void udp_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p,
 
 	/* for print_stats() */
 	ttcp->recved += p->tot_len;
+	DUMP(p->payload,p->tot_len);
 	if (ttcp->verbose) {
 		printk(".");
 		if (ttcp->print_cnt % 80 == 0)
@@ -604,23 +633,35 @@ static void udp_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p,
  * Start UDP transfer.
  */
 static int udp_start(struct ttcp* ttcp) {
+	err_t err = ERR_OK;
 	ttcp->udp_end_marker_left = 5;
+
 	ttcp->upcb = udp_new();
 	if (ttcp->upcb == NULL) {
-		printk("TTCP [%p]: could not allocate pcb\n", ttcp);
+		WARN("TTCP [%p]: could not allocate pcb\n", ttcp);
 		return -1;
 	}
 
+	printk("%s, upcb:%p %s:%d\n", __FUNCTION__, ttcp->upcb, ip2str(ttcp->addr), ttcp->port);
 	if (ttcp->mode == TTCP_MODE_TRANSMIT) {
-		if (udp_connect(ttcp->upcb, &ttcp->addr, ttcp->port) != ERR_OK) {
-			printk("TTCP [%p]: udp connect failed\n", ttcp);
+		if (udp_connect(ttcp->upcb, &(ttcp->addr), ttcp->port) != ERR_OK) {
+			WARN("TTCP [%p]: udp connect failed\n", ttcp);
 			return -1;
 		}
-		udp_send_data(ttcp);
 	} else {
-		udp_recv(ttcp->upcb, udp_recv_cb, ttcp);
+		/* bind to any IP address on port specified */
+		err = udp_bind(ttcp->upcb, IP_ADDR_ANY, ttcp->port);
+		if  (err!= ERR_OK) {
+			WARN("TTCP [%p]: bind failed err=%d Port already used\n", ttcp, err);
+		    return -1;
+		}
+		// clear remote client data
+		setRemoteClient(ttcp->sock, 0, 0);
+		udp_recv(ttcp->upcb, audp_recv_cb, ttcp);
 	}
-
+	printk("%s, loc:0x%x-%d rem:0x%x-%d\n", __FUNCTION__, 
+		 ttcp->upcb->local_ip.addr, ttcp->upcb->local_port, 
+		 ttcp->upcb->remote_ip.addr, ttcp->upcb->remote_port);
 	return 0;
 }
 
@@ -678,8 +719,9 @@ int ard_tcp_start(struct ip_addr addr, uint16_t port, void *opaque,
 		goto fail;
 	}
 	INFO_TCP("TTCP [%p-%p]: nbuf=%d, buflen=%d, port=%d (%s/%s)\n", ttcp,
-			ttcp->tpcb, ttcp->nbuf, ttcp->buflen, ttcp->port, ttcp->udp ? "udp"
-					: "tcp", ttcp->mode == TTCP_MODE_TRANSMIT ? "tx" : "rx");
+			ttcp->udp?ttcp->upcb:ttcp->tpcb, ttcp->nbuf, ttcp->buflen, 
+			ttcp->port, ttcp->udp ? "udp":"tcp", 
+			ttcp->mode == TTCP_MODE_TRANSMIT ? "tx" : "rx");
 
 	*_ttcp = (void*) ttcp;
 	ttcp->sock = sock;
@@ -813,6 +855,34 @@ int sendTcpData(void* p, uint8_t* buf, uint16_t len) {
 	//printk("Write failure _ttcp=%p _ttcp->tpcb=%p buf=%p len=%d\n", _ttcp, _ttcp->tpcb, buf, len);
 	return WL_FAILURE;
 }
+
+int sendUdpData(void* ttcp, uint8_t* buf, uint16_t len) {
+	struct ttcp* _ttcp = (struct ttcp*) ttcp;
+	if ((_ttcp != NULL) && (buf != NULL) && (len != 0))
+	{
+		INFO_TCP("buf:%p len:%d\n", buf, len);
+		DUMP_TCP(buf,len);
+	}else{
+		return WL_FAILURE;
+	}
+
+	struct pbuf* p = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
+	if (p == NULL) {
+		WARN("TTCP [%p]: could not allocate pbuf\n", ttcp);
+		return WL_FAILURE;
+	}
+	memcpy(p->payload, buf, len);
+	if (udp_send(_ttcp->upcb, p) != ERR_OK) {
+		WARN("TTCP [%p]: udp_send() failed\n", _ttcp);
+		pbuf_free(p);
+		return WL_FAILURE;
+	}
+
+	pbuf_free(p);
+	return WL_SUCCESS;
+}
+
+
 
 char
 		usage[] =
