@@ -736,7 +736,7 @@ cmd_sendUdpData(int argc, char* argv[], void* ctx)
 		}else{
 			if (sock < MAX_SOCK_NUM)
 			{
-				sendUdpData(getTTCP(sock), (uint8_t*)pattern, sizeof(pattern)/sizeof(char));
+				sendUdpData(getTTCP(sock, TTCP_MODE_TRANSMIT), (uint8_t*)pattern, sizeof(pattern)/sizeof(char));
 			}
 		}
 

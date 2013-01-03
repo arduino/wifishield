@@ -1,6 +1,6 @@
 
 /*
-  UDP client
+  WiFi UDP Send and Receive String
  
  This sketch wait an UDP packet on localPort using a WiFi shield.
  When a packet is received an Acknowledge packet is sent to the client on port remotePort
@@ -28,10 +28,7 @@ IPAddress server(192,168,6,104);    // remote IP for server
 unsigned int remotePort = 2389;    // remote port to listen on
 
 char packetBuffer[255]; //buffer to hold incoming packet
-char  ReplyBuffer[] = ")acknowledged";       // a string to send back
-char  ReplyBuffer2[] = ".. yes...";       // a string to send back
-char  ReplyBuffer3[] = "now we can stop\n";       // a string to send back
-
+char  ReplyBuffer[] = "acknowledged";       // a string to send back
 
 WiFiUDP Udp;
 WiFiUDP UdpClient;
@@ -68,14 +65,7 @@ void setup() {
   
   Serial.println("\nStarting connection to server...");
   // if you get a connection, report back via serial:
-  Udp.begin(localPort);
-  UdpClient.beginPacket(server, remotePort);
-  IPAddress remoteIp = UdpClient.remoteIP();
-  Serial.print("Remote IP Address: ");
-  Serial.println(remoteIp);
-  int remotePort = UdpClient.remotePort();
-  Serial.print("Port: ");
-  Serial.println(remotePort);
+  Udp.begin(localPort);  
 }
 
 void loop() {
@@ -84,34 +74,25 @@ void loop() {
   int packetSize = Udp.parsePacket();
   if(packetSize)
   {   
-
+    Serial.print("Received packet of size ");
+    Serial.println(packetSize);
+    Serial.print("From ");
     IPAddress remoteIp = Udp.remoteIP();
-    Serial.print("Remote IP Address: ");
-    Serial.println(remoteIp);
-    
-    unsigned int remotePort = Udp.remotePort();
-    Serial.print("Port: ");
-    Serial.println(remotePort);
+    Serial.print(remoteIp);
+    Serial.print(", port ");
+    Serial.println(Udp.remotePort());
 
     // read the packet into packetBufffer
     int len = Udp.read(packetBuffer,255);
     if (len >0) packetBuffer[len]=0;
-    Serial.print("Received packet of size ");
-    Serial.println(len);
     Serial.println("Contents:");
     Serial.println(packetBuffer);
-    Serial.println(strlen(packetBuffer));
-
-    Serial.println("\nWriting Packet...");   
-    itoa(count++,countStr,10);
-    UdpClient.write(countStr);
-    UdpClient.write(ReplyBuffer);
-    UdpClient.write(ReplyBuffer2);
-    UdpClient.write(ReplyBuffer3);
-
-    Serial.println("\nSending Packet..."); 
-    UdpClient.endPacket();
-  }
+    
+    // send a reply, to the IP address and port that sent us the packet we received
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write(ReplyBuffer);
+    Udp.endPacket();
+   }
 }
 
 

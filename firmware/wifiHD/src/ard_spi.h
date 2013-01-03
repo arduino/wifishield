@@ -70,9 +70,9 @@ void showTTCPstatus();
 
 int getSock(void * _ttcp);
 
-void* getTTCP(uint8_t sock);
+void* getTTCP(uint8_t sock, uint8_t mode);
 
-void clearMapSockTcp(uint8_t sock);
+void clearMapSockTcp(uint8_t sock, uint8_t mode);
 
 int start_server_tcp(uint16_t port, uint8_t sock, uint8_t protMode);
 

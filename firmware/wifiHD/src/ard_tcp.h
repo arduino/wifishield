@@ -15,6 +15,9 @@ typedef void (ard_tcp_done_cb_t)(void *opaque, int result);
 
 #define TTCP_MODE_TRANSMIT          0
 #define TTCP_MODE_RECEIVE           1
+#define MAX_MODE_NUM 				2
+
+#define GET_TCP_MODE(X)	((X!=NULL)?((struct ttcp*)(X))->mode:0)
 
 typedef struct ttcp {
 

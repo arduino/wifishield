@@ -125,7 +125,7 @@ static void ard_tcp_done(struct ttcp* ttcp, int result) {
 		ttcp->done_cb(ttcp->opaque, result);
 
 	ard_tcp_destroy(ttcp);
-	clearMapSockTcp(getSock(ttcp));
+	clearMapSockTcp(getSock(ttcp), GET_TCP_MODE(ttcp));
 }
 
 static void
@@ -206,7 +206,7 @@ static void cleanSockState_cb(void *ctx) {
 
 	int sock = getSock(ttcp);
 	if (sock != -1)
-		clearMapSockTcp(sock);
+		clearMapSockTcp(sock, GET_TCP_MODE(ttcp));
 	INFO_TCP("TTCP [%p]: cleanSockState_cb %d\n", ttcp, sock);
 	_connected = false;
 }
@@ -274,23 +274,27 @@ static void close_conn(struct ttcp *_ttcp) {
 
 void closeConnections()
 {
-	int i = 0;
-	for (; i<MAX_SOCK_NUM; i++)
+	int ii=0;
+	for (; ii<MAX_MODE_NUM; ii++)
 	{
-		void* p = getTTCP(i);
-		if (p)
+		int i = 0;
+		for (; i<MAX_SOCK_NUM; i++)
 		{
-			ttcp_t* _ttcp = (ttcp_t* )p;
-			if (_ttcp->udp == TCP_MODE)
+			void* p = getTTCP(i, ii);
+			if (p)
 			{
-				INFO_TCP("Closing connections tpcb[%p] state:0x%x - lpcb[%p] state: 0x%x\n",
-						_ttcp->tpcb, _ttcp->tpcb->state, _ttcp->lpcb, _ttcp->lpcb->state);
-				//tcp_close(_ttcp->tpcb);
-				ard_tcp_destroy(_ttcp);
-				clearMapSockTcp(getSock(_ttcp));
+				ttcp_t* _ttcp = (ttcp_t* )p;
+				if (_ttcp->udp == TCP_MODE)
+				{
+					INFO_TCP("Closing connections tpcb[%p] state:0x%x - lpcb[%p] state: 0x%x\n",
+							_ttcp->tpcb, _ttcp->tpcb->state, _ttcp->lpcb, _ttcp->lpcb->state);
+					//tcp_close(_ttcp->tpcb);
+					ard_tcp_destroy(_ttcp);
+					clearMapSockTcp(getSock(_ttcp), GET_TCP_MODE(_ttcp));
+				}
 			}
 		}
-	}
+	}	
 }
 
 /**
@@ -744,7 +748,7 @@ void ard_tcp_stop(void* ttcp) {
 	if (_ttcp->mode == TTCP_MODE_TRANSMIT) {
 		INFO_TCP("Destroy TCP connection...state:%d\n", _ttcp->tpcb->state);
 		ard_tcp_destroy(_ttcp);
-    	clearMapSockTcp(getSock(_ttcp));
+    	clearMapSockTcp(getSock(_ttcp), GET_TCP_MODE(_ttcp));
     	tcp_poll_retries = 0;
 	}else{
 		INFO_TCP("Closing connection...state:%d\n", _ttcp->tpcb->state);

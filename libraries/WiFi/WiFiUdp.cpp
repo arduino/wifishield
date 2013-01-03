@@ -14,7 +14,7 @@ extern "C" {
 
 
 /* Constructor */
-WiFiUDP::WiFiUDP() : _sock(MAX_SOCK_NUM) {}
+WiFiUDP::WiFiUDP() : _sock(NO_SOCKET_AVAIL) {}
 
 /* Start WiFiUDP socket, listening at local port PORT */
 uint8_t WiFiUDP::begin(uint16_t port) {
@@ -35,7 +35,7 @@ uint8_t WiFiUDP::begin(uint16_t port) {
 /* return number of bytes available in the current packet,
    will return zero if parsePacket hasn't been called yet */
 int WiFiUDP::available() {
-	 if (_sock != 255)
+	 if (_sock != NO_SOCKET_AVAIL)
 	 {
 	      return ServerDrv::availData(_sock);
 	 }
@@ -45,12 +45,12 @@ int WiFiUDP::available() {
 /* Release any resources being used by this WiFiUDP instance */
 void WiFiUDP::stop()
 {
-	  if (_sock == MAX_SOCK_NUM)
+	  if (_sock == NO_SOCKET_AVAIL)
 	    return;
 
 	  ServerDrv::stopClient(_sock);
 
-	  _sock = MAX_SOCK_NUM;
+	  _sock = NO_SOCKET_AVAIL;
 }
 
 int WiFiUDP::beginPacket(const char *host, uint16_t port)
@@ -67,12 +67,12 @@ int WiFiUDP::beginPacket(const char *host, uint16_t port)
 
 int WiFiUDP::beginPacket(IPAddress ip, uint16_t port)
 {
-  uint8_t sock = WiFiClass::getSocket();
-  if (sock != NO_SOCKET_AVAIL)
+  if (_sock == NO_SOCKET_AVAIL)
+	  _sock = WiFiClass::getSocket();
+  if (_sock != NO_SOCKET_AVAIL)
   {
-	  ServerDrv::startClient(uint32_t(ip), port, sock, UDP_MODE);
-	  WiFiClass::_state[sock] = sock;
-	  _sock = sock;
+	  ServerDrv::startClient(uint32_t(ip), port, _sock, UDP_MODE);
+	  WiFiClass::_state[_sock] = _sock;
 	  return 1;
   }
   return 0;
@@ -157,7 +157,7 @@ uint16_t  WiFiUDP::remotePort()
 	uint8_t _remotePort[2] = {0};
 
 	WiFiDrv::getRemoteData(_sock, _remoteIp, _remotePort);
-	uint16_t port = (_remotePort[1]<<8)+_remotePort[0];
+	uint16_t port = (_remotePort[0]<<8)+_remotePort[1];
 	return port;
 }
 

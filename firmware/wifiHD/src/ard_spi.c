@@ -172,7 +172,7 @@ cmd_resetStatSpi(int argc, char* argv[], void* ctx)
 
 int result = WL_CONNECT_FAILED; //Store the result of the last operation
 
-void* mapSockTCP[MAX_SOCK_NUM];
+void* mapSockTCP[MAX_SOCK_NUM][MAX_MODE_NUM];
 
 //Udp RemoteIp and remote Port
 static tRemoteClient remoteClients[MAX_SOCK_NUM] = {0};
@@ -204,10 +204,10 @@ struct ip_addr _hostIpAddr;
 
 static bool hostIpAddrFound = false;
 
-void* getTTCP(uint8_t sock)
+void* getTTCP(uint8_t sock, uint8_t mode)
 {
 	if (sock < MAX_SOCK_NUM)
-		return mapSockTCP[sock];
+		return mapSockTCP[sock][mode];
 	return NULL;
 }
 
@@ -218,7 +218,7 @@ int getSock(void * _ttcp)
 		int i = 0;
 		for (; i<MAX_SOCK_NUM; i++)
 		{
-			if (_ttcp == mapSockTCP[i])
+			if (_ttcp == mapSockTCP[i][GET_TCP_MODE(_ttcp)])
 				return i;
 		}
 	}
@@ -227,19 +227,18 @@ int getSock(void * _ttcp)
 
 void setMapSock(uint8_t sock, void* _ttcp)
 {
-	if (sock < MAX_SOCK_NUM)
-		mapSockTCP[sock]=_ttcp;
+	if ((sock < MAX_SOCK_NUM)&&(_ttcp!=NULL))
+		mapSockTCP[sock][GET_TCP_MODE(_ttcp)]=_ttcp;
 	INFO_TCP("Map [%d, %p]\n", sock, _ttcp);
 }
 
-void clearMapSockTcp(uint8_t sock)
+void clearMapSockTcp(uint8_t sock, uint8_t mode)
 {
 	if (sock < MAX_SOCK_NUM)
 	{
 		//printk("UnMap [%d, %p]\n", sock, mapSockTCP[sock]);
-		mapSockTCP[sock] = NULL;
+		mapSockTCP[sock][mode] = NULL;
 	}
-
 }
 
 void initMapSockTcp()
@@ -269,39 +268,43 @@ void showTTCPstatus()
 	printk("IF   status: %s\n", (ifStatus) ? "UP":"DOWN");
 	printk("CONN status: %s\n", (_connected) ? "UP":"DOWN");
 
-	int i = 0;
-	for (; i<MAX_SOCK_NUM; i++)
+	int ii = 0; 
+	for (; ii<MAX_MODE_NUM; ii++)
 	{
-		void* p = getTTCP(i);
-		if (p)
+		int i=0;
+		for (; i<MAX_SOCK_NUM; i++)
 		{
-			ttcp_t* _ttcp = (ttcp_t* )p;
-			printk("Socket n.:%d [0x%x] %s %s addr:%s port:%d\n", i, _ttcp, 
-				ProtMode2Str(_ttcp->udp), Mode2Str(_ttcp->mode), ip2str(_ttcp->addr), _ttcp->port);
-			if (_ttcp->udp == TCP_MODE)
+			void* p = getTTCP(i, ii);
+			if (p)
 			{
-				if (_ttcp->tpcb){
-					printk("[tpcp-%p]-Status:%d\n", _ttcp->tpcb, _ttcp->tpcb->state);
+				ttcp_t* _ttcp = (ttcp_t* )p;
+				printk("Socket n.:%d [0x%x] %s %s addr:%s port:%d\n", i, _ttcp, 
+					ProtMode2Str(_ttcp->udp), Mode2Str(_ttcp->mode), ip2str(_ttcp->addr), _ttcp->port);
+				if (_ttcp->udp == TCP_MODE)
+				{
+					if (_ttcp->tpcb){
+						printk("[tpcp-%p]-Status:%d\n", _ttcp->tpcb, _ttcp->tpcb->state);
+					}
+					if (_ttcp->lpcb){
+						printk("[tlcp-%p]-Status:%d\n", _ttcp->lpcb, _ttcp->lpcb->state);
+					}
+				}else{
+					if (_ttcp->upcb){
+						struct ip_addr loc = _ttcp->upcb->local_ip;
+						printk("[upcp-%p] flags:0x%x  local:%s[0x%x]-%d\n", 
+								_ttcp->upcb, _ttcp->upcb->flags,
+								ip2str(loc), loc, _ttcp->upcb->local_port);				
+						tRemoteClient remote = {0,0};;
+						getRemoteData(i, ii, &remote);
+						struct ip_addr ipaddr = { remote.ipaddr };
+						printk("remote:%s(0x%x)-%d\n", ip2str(ipaddr), remote.ipaddr, remote.port);
+						}					
 				}
-				if (_ttcp->lpcb){
-					printk("[tlcp-%p]-Status:%d\n", _ttcp->lpcb, _ttcp->lpcb->state);
-				}
-			}else{
-				if (_ttcp->upcb){
-					struct ip_addr loc = _ttcp->upcb->local_ip;
-					printk("[upcp-%p] flags:0x%x  local:%s[0x%x]-%d\n", 
-							_ttcp->upcb, _ttcp->upcb->flags,
-							ip2str(loc), loc, _ttcp->upcb->local_port);				
-					tRemoteClient remote = {0,0};;
-					getRemoteData(i, &remote);
-					struct ip_addr ipaddr = { remote.ipaddr };
-					printk("remote:%s(0x%x)-%d\n", ip2str(ipaddr), remote.ipaddr, remote.port);
-					}					
+				//ard_tcp_print_stats(_ttcp);
+				printk("Data avail:%s", isAvailTcpDataByte(i)?"YES":"NO");
+				printk("------------------------------\n");
 			}
-			//ard_tcp_print_stats(_ttcp);
-			printk("Data avail:%s", isAvailTcpDataByte(i)?"YES":"NO");
-			printk("------------------------------\n");
-		}
+		}			
 	}
 
 	tcp_debug_print_pcbs();
@@ -659,7 +662,7 @@ int start_server_tcp(uint16_t port, uint8_t sock, uint8_t protMode)
     }else{
 
     	WARN("Start Server %s [%d, %d] FAILED!\n", ProtMode2Str(protMode), port, sock);
-    	clearMapSockTcp(sock);
+    	clearMapSockTcp(sock, TTCP_MODE_RECEIVE);
     }
     return err;
 }
@@ -701,12 +704,12 @@ int start_client_tcp(uint32_t _addr, uint16_t port, uint8_t sock, uint8_t protMo
     	return WIFI_SPI_ERR;
 
     // Check previous connection
-	_ttcp = getTTCP(sock);
+	_ttcp = getTTCP(sock, TTCP_MODE_TRANSMIT);
 	if (_ttcp != NULL)
 	{
 		WARN("Previous client %p not stopped !\n", _ttcp);
 		ard_tcp_stop(_ttcp);
-		clearMapSockTcp(sock);
+		clearMapSockTcp(sock, TTCP_MODE_TRANSMIT);
 	}
 
 	if (ard_tcp_start(addr, port, NULL, NULL, mode, nbuf, buflen, udp, verbose, sock, &_ttcp) == 0)
@@ -718,7 +721,7 @@ int start_client_tcp(uint32_t _addr, uint16_t port, uint8_t sock, uint8_t protMo
 	}else{
 		INFO_SPI("Start Client %s %p [0x%x, %d, %d] FAILED!\n", ProtMode2Str(protMode), 
 				_ttcp, addr, port, sock);
-		clearMapSockTcp(sock);
+		clearMapSockTcp(sock, TTCP_MODE_TRANSMIT);
 	}
 	return err;
 }
@@ -751,7 +754,7 @@ int stop_client_tcp_cmd_cb(int numParam, char* buf, void* ctx) {
 
         if (sock < MAX_SOCK_NUM)
         {
-        	_ttcp = getTTCP(sock);
+        	_ttcp = getTTCP(sock, TTCP_MODE_TRANSMIT);
         	ard_tcp_stop(_ttcp);
             err = WL_SUCCESS;
         }
@@ -781,7 +784,7 @@ int send_data_udp_cmd_cb(int numParam, char* buf, void* ctx) {
     	GET_PARAM_NEXT(BYTE, params, sock);
         uint16_t len = 0;
         uint8_t* p = mergeBuf(sock, NULL, &len);
-        err = sendUdpData(getTTCP(sock), p, len);
+        err = sendUdpData(getTTCP(sock, TTCP_MODE_TRANSMIT), p, len);
 		clearBuf(sock);
         free(p);
     }
@@ -799,7 +802,7 @@ int send_data_tcp_cmd_cb(int numParam, char* buf, void* ctx) {
         GET_DATA_BYTE(sock, buf+2);
         GET_DATA_INT(len, buf+3);
         //printk("tcp:%p buf:%p len:%d\n", getTTCP(sock), (uint8_t*)(buf+5), len);
-        err = sendTcpData(getTTCP(sock), (uint8_t*)(buf+5), len);
+        err = sendTcpData(getTTCP(sock, TTCP_MODE_TRANSMIT), (uint8_t*)(buf+5), len);
     }
     DATA_LED_OFF();
     return (err==WL_SUCCESS) ? WIFI_SPI_ACK : WIFI_SPI_ERR;
@@ -869,11 +872,11 @@ cmd_spi_state_t get_reply_ipaddr_cb(char* recv, char* reply, void* ctx, uint16_t
     return SPI_CMD_DONE;
 }
 
-void getRemoteData(uint8_t sock, tRemoteClient* remoteData)
+void getRemoteData(uint8_t sock, uint8_t mode, tRemoteClient* remoteData)
 {
     if ((sock>=0) && (sock<MAX_SOCK_NUM))
     {
-		void* p = getTTCP(sock);
+		void* p = getTTCP(sock, mode);
 		if (p)
 		{
 			ttcp_t* _ttcp = (ttcp_t* )p;
@@ -902,7 +905,8 @@ cmd_spi_state_t get_reply_remote_data_cb(char* recv, char* reply, void* ctx, uin
 
     CREATE_HEADER_REPLY(reply, recv, 2);
 	tRemoteClient remoteData = {0,0};
-	getRemoteData(sock, &remoteData);
+	//TODO pass the mode
+	getRemoteData(sock, TTCP_MODE_RECEIVE, &remoteData);
 
     PUT_LONG_IN_BYTE_NO(remoteData.ipaddr, reply, 3);
     PUT_DATA_INT(remoteData.port, reply, 8);
@@ -1200,7 +1204,7 @@ cmd_spi_state_t get_state_tcp_cmd_cb(char* recv, char* reply, void* ctx, uint16_
     uint8_t _state = CLOSED;
     if ((recv[3]==1)&&(recv[4]>=0)&&(recv[4]<MAX_SOCK_NUM))
     {
-    	_state = getStateTcp(getTTCP((uint8_t)recv[4]), 0);
+    	_state = getStateTcp(getTTCP((uint8_t)recv[4], TTCP_MODE_RECEIVE), 0);
     }
     PUT_DATA_BYTE(_state, reply, 3);
     END_HEADER_REPLY(reply, 5, *count);
@@ -1218,7 +1222,7 @@ cmd_spi_state_t get_client_state_tcp_cmd_cb(char* recv, char* reply, void* ctx, 
     uint8_t _state = CLOSED;
     if ((recv[3]==1)&&(recv[4]>=0)&&(recv[4]<MAX_SOCK_NUM))
     {
-    	void * p= getTTCP((uint8_t)recv[4]);
+    	void * p= getTTCP((uint8_t)recv[4], TTCP_MODE_TRANSMIT);
     	if (p!=NULL)
     	{
 			// get if we are in server or Transmit mode (0)
@@ -1284,7 +1288,7 @@ cmd_spi_state_t data_sent_tcp_cmd_cb(char* recv, char* reply, void* ctx, uint16_
 	uint8_t dataSent = 0;
     if ((recv[3]==1)&&(recv[4]>=0)&&(recv[4]<MAX_SOCK_NUM))
     {
-    	dataSent = isDataSent(getTTCP((uint8_t)recv[4]));
+    	dataSent = isDataSent(getTTCP((uint8_t)recv[4], TTCP_MODE_TRANSMIT));
     }
 	PUT_DATA_BYTE(dataSent, reply, 3);
 	END_HEADER_REPLY(reply, 5, *count);

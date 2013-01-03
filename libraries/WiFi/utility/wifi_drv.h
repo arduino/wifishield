@@ -41,6 +41,9 @@ private:
 
     static int getHostByName(IPAddress& aResult);
 
+    /*
+     * Get remote Data information on UDP socket
+     */
     static void getRemoteData(uint8_t sock, uint8_t *ip, uint8_t *port);
 
 public:

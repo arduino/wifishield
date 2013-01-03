@@ -11,6 +11,7 @@
 #include "ard_utils.h"
 #include "debug.h"
 #include "ard_spi.h"
+#include "ard_tcp.h"
 
 #define MAX_PBUF_STORED	30
 
@@ -49,7 +50,7 @@ void insertBuf(uint8_t sock, uint8_t* buf, uint16_t len)
     	pBufStore[headBuf[sock]][sock].data = p;
     	pBufStore[headBuf[sock]][sock].len = len;
     	pBufStore[headBuf[sock]][sock].idx = 0;
-    	pBufStore[headBuf[sock]][sock].pcb = getTTCP(sock);
+    	pBufStore[headBuf[sock]][sock].pcb = getTTCP(sock, TTCP_MODE_TRANSMIT);
     	headBuf[sock]++;
 
     	if (headBuf[sock] == MAX_PBUF_STORED)
