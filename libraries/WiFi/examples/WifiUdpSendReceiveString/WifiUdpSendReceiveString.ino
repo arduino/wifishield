@@ -24,17 +24,11 @@ char pass[] = "secretPassword";    // your network password (use for WPA, or use
 int keyIndex = 0;            // your network key Index number (needed only for WEP)
 
 unsigned int localPort = 2390;      // local port to listen on
-IPAddress server(192,168,6,104);    // remote IP for server
-unsigned int remotePort = 2389;    // remote port to listen on
 
 char packetBuffer[255]; //buffer to hold incoming packet
 char  ReplyBuffer[] = "acknowledged";       // a string to send back
 
 WiFiUDP Udp;
-WiFiUDP UdpClient;
-
-unsigned int count = 0;
-char countStr[5];
 
 void setup() {
   //Initialize serial and wait for port to open:
