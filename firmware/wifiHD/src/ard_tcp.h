@@ -18,6 +18,7 @@ typedef void (ard_tcp_done_cb_t)(void *opaque, int result);
 #define MAX_MODE_NUM 				2
 
 #define GET_TCP_MODE(X)	((X!=NULL)?((struct ttcp*)(X))->mode:0)
+#define IS_VALID_SOCK(SOCK) ((SOCK>=0)&&(SOCK<MAX_SOCK_NUM))
 
 typedef struct ttcp {
 

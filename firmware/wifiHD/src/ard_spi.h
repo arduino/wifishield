@@ -72,6 +72,8 @@ int getSock(void * _ttcp);
 
 void* getTTCP(uint8_t sock, uint8_t mode);
 
+void setMapSockMode(uint8_t sock, void* _ttcp, uint8_t _tcp_mode);
+
 void clearMapSockTcp(uint8_t sock, uint8_t mode);
 
 int start_server_tcp(uint16_t port, uint8_t sock, uint8_t protMode);
@@ -81,5 +83,7 @@ int start_client_tcp(uint32_t _addr, uint16_t port, uint8_t sock, uint8_t protMo
 void setRemoteClient(uint16_t sock, uint32_t _ipaddr, uint16_t _port);
 
 tRemoteClient* getRemoteClient(uint16_t sock);
+
+void getRemoteData(uint8_t sock, uint8_t mode, tRemoteClient* remoteData);
 
 #endif /* ARD_SPI_H_ */

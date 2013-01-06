@@ -89,14 +89,7 @@ bool scanNetCompleted = false;
 static bool initSpiComplete = false;
 
 // variable used as enable flag for debug prints
-#ifdef _DEBUG_
-uint16_t enableDebug = DEFAULT_INFO_FLAG | INFO_WARN_FLAG;// | INFO_SPI_FLAG;
-uint16_t verboseDebug = 0;
-#else
-uint16_t enableDebug = DEFAULT_INFO_FLAG;
-uint16_t verboseDebug = 0;
-#endif
-
+DEFINE_DEBUG_VARIABLES();
 
 /**
  *

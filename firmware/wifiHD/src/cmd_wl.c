@@ -48,21 +48,6 @@
 
 extern void showTTCPstatus();
 
-#define ENABLE_DEBUG_LEVEL 1
-#define VERBOSE_DEBUG_LEVEL 2
-
-#define CHECK_ENA_DEBUG(LEVEL, FLAG)  		\
-	do{										\
-		if (LEVEL >= ENABLE_DEBUG_LEVEL) enableDebug |= FLAG;		\
-		else enableDebug &= ~FLAG;			\
-		}while(0);
-
-#define CHECK_VERB_DEBUG(LEVEL, FLAG)  		\
-	do{										\
-		if (LEVEL >= VERBOSE_DEBUG_LEVEL) verboseDebug |= FLAG;		\
-		else verboseDebug &= ~FLAG;			\
-		}while(0);
-
 #define  _DNS_CMD_
 
 /**
@@ -633,16 +618,14 @@ cmd_debug(int argc, char* argv[], void* ctx)
 
         if (argc == 2 && strcmp(argv[1], "off") == 0) {
                 printk("Debug OFF\n");
-                enableDebug = DEFAULT_INFO_FLAG;
-                verboseDebug = 0;
+                INIT_DEBUG_VARIABLES()
                 return CMD_DONE;
         }else if (argc == 2 && strcmp(argv[1], "print") == 0) {
-            printk("Debug enabled: 0x%x\n", enableDebug);
-            printk("Verbose enabled: 0x%x\n", verboseDebug);
+        	PRINT_DEBUG_VARIABLES()
             return CMD_DONE;
         }else if (argc == 2 && strcmp(argv[1], "on") == 0) {
             printk("Debug ON\n");
-            enableDebug = 0xff;
+            TURNON_DEBUG_VARIABLES();
             return CMD_DONE;
         }
         if (argc < 3) {
@@ -651,23 +634,17 @@ cmd_debug(int argc, char* argv[], void* ctx)
         }
         level = atoi(argv[2]);
         if (argc == 3 && strcmp(argv[1], "init") == 0) {
-        	CHECK_ENA_DEBUG(level, INFO_INIT_FLAG);
-        	CHECK_VERB_DEBUG(level, INFO_INIT_FLAG);
+        	CHECK_DEBUG_LEVEL(level, INFO_INIT_FLAG);
         }else if (argc == 3 && strcmp(argv[1], "spi") == 0) {
-        	CHECK_ENA_DEBUG(level, INFO_SPI_FLAG);
-        	CHECK_VERB_DEBUG(level, INFO_SPI_FLAG);
+        	CHECK_DEBUG_LEVEL(level, INFO_SPI_FLAG);
         }else if (argc == 3 && strcmp(argv[1], "tcp") == 0) {
-        	CHECK_ENA_DEBUG(level, INFO_TCP_FLAG);
-        	CHECK_VERB_DEBUG(level, INFO_TCP_FLAG);
+        	CHECK_DEBUG_LEVEL(level, INFO_TCP_FLAG);
         }else if (argc == 3 && strcmp(argv[1], "cm") == 0) {
-        	CHECK_ENA_DEBUG(level, INFO_CM_FLAG);
-        	CHECK_VERB_DEBUG(level, INFO_CM_FLAG);
+        	CHECK_DEBUG_LEVEL(level, INFO_CM_FLAG);
         }else if (argc == 3 && strcmp(argv[1], "util") == 0) {
-        	CHECK_ENA_DEBUG(level, INFO_UTIL_FLAG);
-        	CHECK_VERB_DEBUG(level, INFO_UTIL_FLAG);
+        	CHECK_DEBUG_LEVEL(level, INFO_UTIL_FLAG);
         }else if (argc == 3 && strcmp(argv[1], "warn") == 0) {
-        	CHECK_ENA_DEBUG(level, INFO_WARN_FLAG);
-        	CHECK_VERB_DEBUG(level, INFO_WARN_FLAG);
+        	CHECK_DEBUG_LEVEL(level, INFO_WARN_FLAG);
         }
         return CMD_DONE;
 }
@@ -700,6 +677,8 @@ cmd_dumpBuf(int argc, char* argv[], void* ctx)
 	}		
 	return CMD_DONE;
 }
+
+
 
 /**
  *
