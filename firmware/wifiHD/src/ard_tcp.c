@@ -431,11 +431,18 @@ static err_t atcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err) {
 	pending_accept = true;
     tcp_setprio(newpcb, TCP_PRIO_MIN);
     tcp_poll_retries = 0;
+    if (ttcp->tpcb == NULL)
+    {
+		WARN("Replace previous tpcb=0x%x with the new one 0x%x\n", ttcp->tpcb, newpcb);
+	}		
 	ttcp->tpcb = newpcb;
 	tcp_recv(ttcp->tpcb, atcp_recv_cb);
 	tcp_err(ttcp->tpcb, atcp_conn_err_cb);
 	tcp_poll(ttcp->tpcb, atcp_poll, 4);
-
+	// Copy the pointer to ttcp also to TRANSMIT mode for the clients connected to the server
+	int _sock = getSock(ttcp);
+	if ((_sock != -1)&&(IS_VALID_SOCK(_sock)))
+		setMapSockMode(_sock, ttcp, TTCP_MODE_TRANSMIT);
 	ttcp->start_time = timer_get_ms();
 	return ERR_OK;
 }
@@ -723,8 +730,8 @@ int ard_tcp_start(struct ip_addr addr, uint16_t port, void *opaque,
 		goto fail;
 	}
 	INFO_TCP("TTCP [%p-%p]: nbuf=%d, buflen=%d, port=%d (%s/%s)\n", ttcp,
-			ttcp->udp?ttcp->upcb:ttcp->tpcb, ttcp->nbuf, ttcp->buflen, 
-			ttcp->port, ttcp->udp ? "udp":"tcp", 
+			(ttcp->udp==1)?ttcp->upcb:ttcp->tpcb, ttcp->nbuf, ttcp->buflen, 
+			ttcp->port, (ttcp->udp==1) ? "udp":"tcp", 
 			ttcp->mode == TTCP_MODE_TRANSMIT ? "tx" : "rx");
 
 	*_ttcp = (void*) ttcp;
