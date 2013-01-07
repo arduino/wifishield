@@ -28,13 +28,13 @@ void init_pBuf()
 	memset(pBufStore, 0, sizeof(pBufStore));
 }
 
-void insertBuf(uint8_t sock, uint8_t* buf, uint16_t len)
+uint8_t* insertBuf(uint8_t sock, uint8_t* buf, uint16_t len)
 {
 	DUMP(buf,len);
 	if (sock>= MAX_SOCK_NUM)
 	{
 		WARN("Sock out of range: sock=%d", sock);
-		return;
+		return NULL;
 	}		
 	if (pBufStore[headBuf[sock]][sock].data != NULL)
 	{
@@ -56,9 +56,16 @@ void insertBuf(uint8_t sock, uint8_t* buf, uint16_t len)
     	if (headBuf[sock] == MAX_PBUF_STORED)
     		headBuf[sock] = 0;
     	if (headBuf[sock] == tailBuf[sock])
-    		WARN("Overwriting data [%d-%d]!\n", headBuf[sock], tailBuf[sock]);
+    	{
+    		WARN("Avoid to Overwrite data [%d-%d]!\n", headBuf[sock], tailBuf[sock]);
+    		if (headBuf[sock] != 0)
+    			--headBuf[sock];
+    		else
+    			headBuf[sock] = MAX_PBUF_STORED-1;
+    	}
     	INFO_UTIL("Insert[%d]: %p:%d-%d [%d,%d]\n", sock, p, len, p[0], headBuf[sock], tailBuf[sock]);
     }
+    return p;
 }
 
 
@@ -123,10 +130,10 @@ uint8_t* mergeBuf(uint8_t sock, uint8_t** buf, uint16_t* _len)
 	return _p;
 }
 
-void insert_pBuf(struct pbuf* q, uint8_t sock, void* _pcb)
+uint8_t* insert_pBuf(struct pbuf* q, uint8_t sock, void* _pcb)
 {
 	if (q == NULL)
-		return;
+		return NULL;
 
 	if (pBufStore[headBuf[sock]][sock].data != NULL)
 	{
@@ -141,7 +148,7 @@ void insert_pBuf(struct pbuf* q, uint8_t sock, void* _pcb)
     	  WARN("pbuf_copy_partial failed: src:%p, dst:%p, len:%d\n", q, p, q->tot_len);
     	  free(p);
     	  p = NULL;
-    	  return;
+    	  return p;
       }
 
       pBufStore[headBuf[sock]][sock].data = p;
@@ -153,9 +160,16 @@ void insert_pBuf(struct pbuf* q, uint8_t sock, void* _pcb)
   	  if (headBuf[sock] == MAX_PBUF_STORED)
   		headBuf[sock] = 0;
   	  if (headBuf[sock] == tailBuf[sock])
-  		  WARN("Overwriting data [%d-%d]!\n", headBuf[sock], tailBuf[sock]);
+  	  {
+  		  WARN("Avoid to Overwrite data [%d-%d]!\n", headBuf[sock], tailBuf[sock]);
+  		  if (headBuf[sock] != 0)
+  			  --headBuf[sock];
+  		  else
+  			  headBuf[sock] = MAX_PBUF_STORED-1;
+  	  }
   	  INFO_UTIL("Insert[%d]: %p:%d-%d [%d,%d]\n", sock, p, q->tot_len, p[0], headBuf[sock], tailBuf[sock]);
     }
+    return p;
 }
 
 void dumpPbuf(uint8_t sock)
@@ -304,5 +318,13 @@ bool freeTcpData(uint8_t sock)
 	return false;
 }
 
-
+void freeAllTcpData(uint8_t sock)
+{
+	tData* p = NULL;
+	do{
+		p = get_pBuf(sock);
+		if (p != NULL)
+			freetData(p->data, sock);
+	}while(p!=NULL);
+}
 

@@ -51,9 +51,11 @@ static void ard_tcp_destroy(struct ttcp* ttcp) {
 	err_t err = ERR_OK;
 	DUMP_TCP_STATE(ttcp);
 
-	if (getSock(ttcp)==-1)
+	uint8_t sock = getSock(ttcp);
+	if (sock == -1)
 		WARN("ttcp already deallocated!\n");
 
+	freeAllTcpData(sock);
 	if (ttcp->tpcb) {
 		tcp_arg(ttcp->tpcb, NULL);
 		tcp_sent(ttcp->tpcb, NULL);
@@ -305,7 +307,6 @@ static err_t atcp_recv_cb(void *arg, struct tcp_pcb *pcb, struct pbuf *p,
 	struct ttcp* ttcp = arg;
 
 	if (err == ERR_OK && p != NULL) {
-		INFO_TCP("pcb:%p pbuf: %p err:%d len:%d\n", pcb, p, err, p->tot_len);
 		DATA_LED_ON();
 		/* for print_stats() */
 		ttcp->recved += p->tot_len;
@@ -316,7 +317,9 @@ static err_t atcp_recv_cb(void *arg, struct tcp_pcb *pcb, struct pbuf *p,
 			ttcp->print_cnt++;
 		}
 
-		insert_pBuf(p, ttcp->sock, (void*) pcb);
+		uint8_t* pBufferStore = insert_pBuf(p, ttcp->sock, (void*) pcb);
+		INFO_TCP("sock:%d pcb:%p pbuf:%p err:%d bufStore:%p len:%d\n",
+				ttcp->sock, pcb, p, err, pBufferStore, p->tot_len);
 		tcp_recved(pcb, p->tot_len);
 		pbuf_free(p);
 		DATA_LED_OFF();
@@ -598,7 +601,7 @@ static void audp_recv_cb(void *arg, struct udp_pcb *upcb, struct pbuf *p,
 	insert_pBuf(p, ttcp->sock, (void*) upcb);
 	setRemoteClient(ttcp->sock, addr->addr, port);
 
-	out: pbuf_free(p);
+	pbuf_free(p);
 }
 
 
@@ -731,8 +734,7 @@ int ard_tcp_start(struct ip_addr addr, uint16_t port, void *opaque,
 	}
 	INFO_TCP("TTCP [%p-%p]: nbuf=%d, buflen=%d, port=%d (%s/%s)\n", ttcp,
 			(ttcp->udp==1)?ttcp->upcb:ttcp->tpcb, ttcp->nbuf, ttcp->buflen, 
-			ttcp->port, (ttcp->udp==1) ? "udp":"tcp", 
-			ttcp->mode == TTCP_MODE_TRANSMIT ? "tx" : "rx");
+			ttcp->port, ProtMode2Str(ttcp->udp), Mode2Str(ttcp->mode));
 
 	*_ttcp = (void*) ttcp;
 	ttcp->sock = sock;

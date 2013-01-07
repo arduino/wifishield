@@ -229,7 +229,7 @@ void setMapSockMode(uint8_t sock, void* _ttcp, uint8_t _tcp_mode)
 {
 	if ((IS_VALID_SOCK(sock))&&(_ttcp!=NULL))
 		mapSockTCP[sock][_tcp_mode]=_ttcp;
-	INFO_TCP("Map [%d, %p]\n", sock, _ttcp);
+	INFO_TCP("Map [%d, %p, %s]\n", sock, _ttcp, Mode2Str(_tcp_mode));
 }
 
 void setMapSock(uint8_t sock, void* _ttcp)
@@ -263,8 +263,8 @@ static void ard_tcp_print_stats(struct ttcp *ttcp) {
 		printk("\n");
 
 	printk("TTCP [%p]: %d bytes processed, %d.%d KB/s (%s/%s)\n", ttcp, bytes,
-			bytes / ms, bytes % ms, ttcp->udp ? "udp" : "tcp", ttcp->mode
-					== TTCP_MODE_TRANSMIT ? "tx" : "rx");
+			bytes / ms, bytes % ms, ProtMode2Str(ttcp->udp),
+					Mode2Str(ttcp->mode));
 }
 
 
@@ -273,11 +273,11 @@ void showTTCPstatus()
 	printk("IF   status: %s\n", (ifStatus) ? "UP":"DOWN");
 	printk("CONN status: %s\n", (_connected) ? "UP":"DOWN");
 
-	int ii = 0; 
-	for (; ii<MAX_MODE_NUM; ii++)
+	int i = 0;
+	for (; i<MAX_SOCK_NUM; i++)
 	{
-		int i=0;
-		for (; i<MAX_SOCK_NUM; i++)
+		int ii=0;
+		for (; ii<MAX_MODE_NUM; ii++)
 		{
 			void* p = getTTCP(i, ii);
 			if (p)

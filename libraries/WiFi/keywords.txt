@@ -37,6 +37,11 @@ getSocket	KEYWORD2
 WiFiClient	KEYWORD2
 WiFiServer	KEYWORD2
 WiFiUDP		KEYWORD2
+beginPacket	KEYWORD2
+endPacket	KEYWORD2
+parsePacket	KEYWORD2
+remoteIP	KEYWORD2
+remotePort	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

@@ -148,7 +148,7 @@ Y;	\
 #define INFO_SPI_POLL(msg, args...) IF_DEBUG_POLL(SPI,PRINT_DEBUG(msg, ##args))
 #define INFO_UTIL(msg, args...) 	IF_DEBUG(UTIL,PRINT_DEBUG(msg, ##args))
 #define INFO_UTIL_VER(msg, args...) IF_DEBUG_VER(UTIL,PRINT_DEBUG(msg, ##args))
-#define CM_DPRINTF(args...) 		IF_DEBUG(CM,PRINT_DEBUG("CM", ##args))
+#define CM_DPRINTF(msg, args...) 	IF_DEBUG(CM,PRINT_DEBUG(msg, ##args))
 
 extern void dump(char* _buf, uint16_t _count);
 

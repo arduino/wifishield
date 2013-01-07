@@ -254,9 +254,9 @@ struct pbuf;
 
 void init_pBuf();
 
-void insert_pBuf(struct pbuf* q, uint8_t sock, void* _pcb);
+uint8_t* insert_pBuf(struct pbuf* q, uint8_t sock, void* _pcb);
 
-void insertBuf(uint8_t sock, uint8_t* buf, uint16_t len);
+uint8_t* insertBuf(uint8_t sock, uint8_t* buf, uint16_t len);
 
 uint8_t* mergeBuf(uint8_t sock, uint8_t** buf, uint16_t* _len);
 
@@ -277,5 +277,7 @@ bool getTcpDataByte(uint8_t sock, uint8_t* payload, uint8_t peek);
 bool isAvailTcpDataByte(uint8_t sock);
 
 uint8_t freeTcpData(uint8_t sock);
+
+void freeAllTcpData(uint8_t sock);
 
 #endif /* ARD_UTILS_H_ */
