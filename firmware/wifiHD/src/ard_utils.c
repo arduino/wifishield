@@ -243,6 +243,15 @@ void freetDataIdx(uint8_t idxBuf, uint8_t sock)
 
 void ack_recved(void* pcb, int len);
 
+void ackAndFreeData(void* pcb, int len, uint8_t sock, uint8_t* data)
+{
+	INFO_UTIL("Ack pcb:%p len:%d sock:%d data:%p\n", pcb, len, sock, data);
+	ack_recved(pcb, len);
+	if (data != NULL)
+		freetData(data, sock);
+}
+
+
 bool isAvailTcpDataByte(uint8_t sock)
 {
 	tData* p = get_pBuf(sock);
@@ -252,10 +261,9 @@ bool isAvailTcpDataByte(uint8_t sock)
 		INFO_UTIL_VER("check:%d %d %p\n",p->idx, p->len, p->data);
 		if (p->idx == p->len)
 		{
-			freetData(p->data, sock);
-			ack_recved(p->pcb, p->len);
 			INFO_UTIL("Free %p other buf %d tail:%d head:%d\n",
 					p->data, IS_BUF_AVAIL(sock), tailBuf[sock], headBuf[sock]);
+			ackAndFreeData(p->pcb, p->len, sock, p->data);						
 			return (IS_BUF_AVAIL(sock));
 		}else{
 			return true;
@@ -283,10 +291,7 @@ bool getTcpDataByte(uint8_t sock, uint8_t* payload, uint8_t peek)
 		INFO_UTIL_VER("get:%d %p %d\n",p->idx, p->data, *payload);
 		return true;
 		}else{
-			//dealloc current buffer
-			INFO_UTIL("Free %p\n", p->data);
-			freetData(p->data, sock);
-			ack_recved(p->pcb, p->len);
+			ackAndFreeData(p->pcb, p->len, sock, p->data);
 		}
 	}
 	return false;
@@ -311,8 +316,7 @@ bool freeTcpData(uint8_t sock)
 	p = get_pBuf(sock);
 	if (p != NULL)
 	{
-		freetData(p->data, sock);
-		ack_recved(p->pcb, p->len);
+		ackAndFreeData(p->pcb, p->len, sock, p->data);
 		return true;
 	}
 	return false;

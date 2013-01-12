@@ -320,7 +320,6 @@ static err_t atcp_recv_cb(void *arg, struct tcp_pcb *pcb, struct pbuf *p,
 		uint8_t* pBufferStore = insert_pBuf(p, ttcp->sock, (void*) pcb);
 		INFO_TCP("sock:%d pcb:%p pbuf:%p err:%d bufStore:%p len:%d\n",
 				ttcp->sock, pcb, p, err, pBufferStore, p->tot_len);
-		tcp_recved(pcb, p->tot_len);
 		pbuf_free(p);
 		DATA_LED_OFF();
 	}
@@ -338,7 +337,8 @@ static err_t atcp_recv_cb(void *arg, struct tcp_pcb *pcb, struct pbuf *p,
 
 void ack_recved(void* pcb, int len) {
 	// Comment the call because it is activated on atcp_recv_cb
-	//tcp_recved(pcb, len);
+	INFO_TCP("Received %p len:%d\n", pcb, len);
+	tcp_recved(pcb, len);
 }
 
 static err_t atcp_poll(void *arg, struct tcp_pcb *pcb) {
