@@ -39,7 +39,7 @@
 #include <lwip_setup.h>
 
 /* FIRMWARE version */
-const char* fwVersion = "1.0.0";
+const char* fwVersion = "1.1.0";
 
 #if BOARD == ARDUINO
 #if !defined(DATAFLASH)
