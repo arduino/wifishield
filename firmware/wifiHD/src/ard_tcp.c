@@ -108,7 +108,7 @@ static void ard_tcp_done(struct ttcp* ttcp, int result) {
  * Called upon connect and when there's space available in the TCP send window
  * 
  */
-static void tcp_send_data(struct ttcp *ttcp) {
+static err_t tcp_send_data(struct ttcp *ttcp) {
 	err_t err = ERR_OK;
 	uint32_t len, orig_len;
 
@@ -117,7 +117,7 @@ static void tcp_send_data(struct ttcp *ttcp) {
 
 	if (len == 0) return;
 
-	INFO_TCP_VER("left=%d len:%d tcp_sndbuf:%d\n", ttcp->left, len);
+	INFO_TCP_VER("left=%d len:%d\n", ttcp->left, len);
 
 	/* don't send more than we have in the payload */
 	if (len > ttcp->buflen)
@@ -129,28 +129,21 @@ static void tcp_send_data(struct ttcp *ttcp) {
 		len = tcp_sndbuf(GET_FIRST_CLIENT_TCP(ttcp));
 
 	orig_len = len;
-	uint8_t count = 0;
-	do {
-		startTime = timer_get_ms();
-		err = tcp_write(GET_FIRST_CLIENT_TCP(ttcp), ttcp->payload, len, TCP_WRITE_FLAG_COPY);
-		INFO_TCP_VER("%d) tcp_write %p state:%d len:%d err:%d\n", count++, 
-					GET_FIRST_CLIENT_TCP(ttcp), GET_FIRST_CLIENT_TCP(ttcp)->state, len, err);
-		if (err == ERR_MEM)
-		{
-			len /= 2;
-			ttcp->buff_sent = 0;
-		}else if (err == ERR_OK){
-			ttcp->buff_sent = 1;
-			isDataSentCount = 0;
-		}
-	} while (err == ERR_MEM && len > 1);
 
-	if (err == ERR_OK){
+	IF_TCP(startTime = timer_get_ms());
+	err = tcp_write(GET_FIRST_CLIENT_TCP(ttcp), ttcp->payload, len, TCP_WRITE_FLAG_COPY);
+	if (err != ERR_OK)
+	{
+		INFO_TCP("tcp_write failed %p state:%d len:%d err:%d\n", 
+				GET_FIRST_CLIENT_TCP(ttcp), GET_FIRST_CLIENT_TCP(ttcp)->state, len, err);
+		ttcp->buff_sent = 0;
+	}else{
+		ttcp->buff_sent = 1;
+		isDataSentCount = 0;
 		ttcp->left -= len;
 	}
-	else
-		WARN("TTCP [%p-%p]: tcp_write failed err:%d origLen:%d len:%d\n",
-				ttcp, GET_FIRST_CLIENT_TCP(ttcp), err, orig_len, len);
+
+	return err;
 }
 
 /**
@@ -233,7 +226,7 @@ static void close_conn(struct ttcp *_ttcp, struct tcp_pcb* tpcb) {
 	tcp_recv(_ttcp->tpcb[id], NULL);
 	err_t err = tcp_close(tpcb);
 
-	INFO_TCP("Closing tpcb[%p]: state:0x%x err:%d\n",_ttcp->tpcb[id], _ttcp->tpcb[id]->state, err);
+	INFO_TCP("Closing tpcb[%p-%p]: state:0x%x err:%d\n",_ttcp->tpcb[id], tpcb, _ttcp->tpcb[id]->state, err);
 	removeNewClientConn(_ttcp, tpcb);
 	if (err == ERR_MEM)
 		pending_close = true;
@@ -325,13 +318,14 @@ static err_t atcp_poll(void *arg, struct tcp_pcb *pcb) {
 	}
 	
 	if (pcb)
-	INFO_TCP_POLL("keepAliveCnt:%d keep_idle:%d persist_cnt:%d\n", 
-	pcb->keep_cnt_sent, pcb->keep_idle, pcb->persist_cnt);
+		INFO_TCP_POLL("keepAliveCnt:%d keep_idle:%d persist_cnt:%d\n", 
+						pcb->keep_cnt_sent, pcb->keep_idle, pcb->persist_cnt);
 
-	INFO_TCP_POLL("ARD TCP [%p-%p] arg=%p retries=%d pend.close:%d len:%d\n",
+	if (_ttcp->left > 0)
+		INFO_TCP("ARD TCP [%p-%p] arg=%p retries=%d pend.close:%d len:%d\n",
 			(_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0, pcb, arg,
 			_ttcp->tcp_poll_retries, pending_close, (_ttcp)?_ttcp->left:0);
-	if (_ttcp) tcp_send_data(_ttcp);
+	tcp_send_data(_ttcp);
 
 	if (pending_close)
 	{
@@ -485,6 +479,7 @@ static err_t atcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err) {
 	*/
 	pending_accept = true;
     tcp_setprio(newpcb, TCP_PRIO_MIN);
+
     _ttcp->tcp_poll_retries = 0;
     /*
     if (_ttcp->tpcb == NULL)
@@ -493,6 +488,7 @@ static err_t atcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err) {
 	}		
 	*/
 	int8_t id = insertNewClientConn(_ttcp, newpcb);
+	tcp_arg(_ttcp->tpcb[id], _ttcp);
 	tcp_recv(_ttcp->tpcb[id], atcp_recv_cb);
 	tcp_err(_ttcp->tpcb[id], atcp_conn_err_cb);
 	tcp_poll(_ttcp->tpcb[id], atcp_poll, 4);
@@ -517,17 +513,17 @@ static int atcp_start(struct ttcp* ttcp) {
 		return -1;
 	}
 
-	setNewClientConn(ttcp, p, 0);
 	ttcp->payload = malloc(ttcp->buflen);
 	if (ttcp->payload == NULL) {
 		WARN("TTCP [%p]: could not allocate payload\n", ttcp);
 		return -1;
 	}
 
-	tcp_arg(GET_FIRST_CLIENT_TCP(ttcp), ttcp);
+	tcp_arg(p, ttcp);
 	atcp_init_pend_flags();
 
 	if (ttcp->mode == TTCP_MODE_TRANSMIT) {
+		setNewClientConn(ttcp, p, 0);
 		tcp_err(GET_FIRST_CLIENT_TCP(ttcp), atcp_conn_cli_err_cb);
 		tcp_recv(GET_FIRST_CLIENT_TCP(ttcp), atcp_recv_cb);
 		tcp_sent(GET_FIRST_CLIENT_TCP(ttcp), tcp_data_sent);
@@ -543,22 +539,16 @@ static int atcp_start(struct ttcp* ttcp) {
 
 	} else {
 		INFO_TCP("BEFORE BIND ttcp:%p lpcb:%p pcb:%p\n", ttcp, ttcp->lpcb, GET_FIRST_CLIENT_TCP(ttcp));
-		INFO_TCP("[tpcb]-local:%d remote:%d state:%d\n", GET_FIRST_CLIENT_TCP(ttcp)->local_port, 
-						GET_FIRST_CLIENT_TCP(ttcp)->remote_port, GET_FIRST_CLIENT_TCP(ttcp)->state);
 
-		err = tcp_bind(GET_FIRST_CLIENT_TCP(ttcp), IP_ADDR_ANY, ttcp->port);
+		err = tcp_bind(p, IP_ADDR_ANY, ttcp->port);
 		if (err != ERR_OK){
 			WARN("TTCP [%p]: bind failed err=%d Port already used\n", ttcp, err);
 			return -1;
 		}
 
-		ttcp->lpcb = tcp_listen(GET_FIRST_CLIENT_TCP(ttcp));
+		ttcp->lpcb = tcp_listen(p);
 		if (ttcp->lpcb == NULL) {
 			WARN("TTCP [%p]: listen failed\n", ttcp);
-			return -1;
-		}
-		if (ttcp->lpcb == GET_FIRST_CLIENT_TCP(ttcp) ) {
-			WARN("TTCP [%p]: listen failed tpcb [%p] in listen mode\n", ttcp, GET_FIRST_CLIENT_TCP(ttcp));
 			return -1;
 		}
 
@@ -796,14 +786,14 @@ uint8_t getStateTcp(void* p, bool client) {
 
 	if (ifStatus == false)
 		return CLOSED;
-	if ((_ttcp != NULL) && (GET_FIRST_CLIENT_TCP(_ttcp) != NULL)) {
-		IF_TCP_VER(DUMP_TCP_STATE(_ttcp));
+	if ((_ttcp != NULL) && ((GET_FIRST_CLIENT_TCP(_ttcp) != NULL) || (client==0))) {
+		IF_SPI_POLL(DUMP_TCP_STATE(_ttcp));
 		if (client)
 			return GET_FIRST_CLIENT_TCP(_ttcp)->state;
 		else
 			return _ttcp->lpcb->state;
 	} else {
-		INFO_TCP_VER("TCP not initialized ttcp:%p tpcb:%p lpcb:%p\n",
+		WARN_POLL("TCP not initialized ttcp:%p tpcb:%p lpcb:%p\n",
 				_ttcp, ((_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0), ((_ttcp)?_ttcp->lpcb:0));
 	}
 	return CLOSED;
@@ -864,7 +854,7 @@ int sendTcpData(void* p, uint8_t* buf, uint16_t len)
 		return WL_FAILURE;
 	}
 	
-	INFO_TCP("ttcp:%p pcb:%p buf:%p len:%d\n", _ttcp, 
+	INFO_TCP_VER("ttcp:%p pcb:%p buf:%p len:%d\n", _ttcp, 
 		GET_FIRST_CLIENT_TCP(_ttcp), buf, len);
 	DUMP_TCP(buf,len);
 	IF_TCP_VER(DUMP_TCP_STATE(_ttcp));
@@ -878,7 +868,7 @@ int sendTcpData(void* p, uint8_t* buf, uint16_t len)
 
 		memcpy(_ttcp->payload, buf, len);
 		_ttcp->payload[len]='\0';
-		INFO_TCP_VER("%s\n", _ttcp->payload);
+		INFO_TCP_VER("'%s'\n", _ttcp->payload);
 		_ttcp->left = len;
 		tcp_sent(GET_FIRST_CLIENT_TCP(_ttcp), tcp_data_sent);
 		tcp_send_data(_ttcp);
