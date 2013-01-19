@@ -251,6 +251,7 @@ void initMapSockTcp()
 	memset(mapSockTCP, 0, sizeof(mapSockTCP));
 }
 
+#if 0
 /**
  * Calculate bitrate based on number of bytes transmitted and elapsed time
  */
@@ -266,7 +267,7 @@ static void ard_tcp_print_stats(struct ttcp *ttcp) {
 			bytes / ms, bytes % ms, ProtMode2Str(ttcp->udp),
 					Mode2Str(ttcp->mode));
 }
-
+#endif
 
 void showTTCPstatus()
 {
@@ -283,13 +284,18 @@ void showTTCPstatus()
 			if (p)
 			{
 				ttcp_t* _ttcp = (ttcp_t* )p;
-				printk("Socket n.:%d [0x%x] %s %s addr:%s port:%d\n", i, _ttcp, 
+				printk("Socket n.:%d(%d) [0x%x] %s %s addr:%s port:%d\n", i, ii, _ttcp, 
 					ProtMode2Str(_ttcp->udp), Mode2Str(_ttcp->mode), ip2str(_ttcp->addr), _ttcp->port);
 				if (_ttcp->udp == TCP_MODE)
 				{
-					if (_ttcp->tpcb){
-						printk("[tpcp-%p]-Status:%d\n", _ttcp->tpcb, _ttcp->tpcb->state);
+					int j = 0;
+					for (; j<MAX_CLIENT_ACCEPTED; ++j)
+					{
+						if (_ttcp->tpcb[j]){
+							printk("[%d tpcp-%p]-Status:%d\n", j, _ttcp->tpcb[j], _ttcp->tpcb[j]->state);
+						}
 					}
+
 					if (_ttcp->lpcb){
 						printk("[tlcp-%p]-Status:%d\n", _ttcp->lpcb, _ttcp->lpcb->state);
 					}
@@ -1181,23 +1187,7 @@ cmd_spi_state_t get_client_state_tcp_cmd_cb(char* recv, char* reply, void* ctx, 
     	void * p= getTTCP(_sock, TTCP_MODE_TRANSMIT);
     	if (p!=NULL)
     	{
-			// get if we are in server or Transmit mode (0)
-			if (getModeTcp(p) == TTCP_MODE_TRANSMIT)
-			{
-
-				_state = getStateTcp(p, 1);
-				INFO_SPI_VER("CLI> p=%p _ttcp=%p state(tpcb):%d state:%d\n",
-									p, ((struct ttcp*) p)->tpcb,
-									((struct ttcp*) p)->tpcb->state,
-									_state);
-			}else {
-				_state = getStateTcp(p, 1);
-				INFO_SPI_VER("SER> p=%p _ttcp=%p state(tpcb):%d state(lpcb):%d state:%d\n",
-									p, ((struct ttcp*) p)->tpcb,
-									((struct ttcp*) p)->tpcb->state,
-									((struct ttcp*) p)->lpcb->state,
-									_state);
-			}
+			_state = getStateTcp(p, 1);	
     	}else{
     		WARN_VER("TTCP not found for sock:%d\n", _sock);
     	}

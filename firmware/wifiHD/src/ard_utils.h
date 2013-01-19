@@ -234,10 +234,11 @@
 #define STATSPI_OVERRIDE_ERROR()
 #endif
 
-#define DUMP_TCP_STATE(TTCP) \
+#define DUMP_TCP_STATE(TTCP) do {\
 		INFO_TCP("ttcp:%p tpcb:%p state:%d lpcb:%p state:%d\n", \
-			TTCP, TTCP->tpcb, (TTCP->tpcb)?TTCP->tpcb->state:0, \
-			TTCP->lpcb, (TTCP->lpcb)?TTCP->lpcb->state:0);
+			TTCP, TTCP->tpcb[0], (TTCP->tpcb[0])?TTCP->tpcb[0]->state:0, \
+			TTCP->lpcb, (TTCP->lpcb)?TTCP->lpcb->state:0); \
+			} while(0);
 			
 #define Mode2Str(_Mode) ((_Mode==0)?"TRANSMIT":"RECEIVE")			
 #define ProtMode2Str(_protMode) ((_protMode==0)?"TCP":"UDP")

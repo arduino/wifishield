@@ -20,6 +20,13 @@ typedef void (ard_tcp_done_cb_t)(void *opaque, int result);
 #define GET_TCP_MODE(X)	((X!=NULL)?((struct ttcp*)(X))->mode:0)
 #define IS_VALID_SOCK(SOCK) ((SOCK>=0)&&(SOCK<MAX_SOCK_NUM))
 
+// Maximum number of client connection accepted by server
+#define MAX_CLIENT_ACCEPTED			4
+#define NO_VALID_ID					-1
+#define GET_FIRST_CLIENT_TCP(TTCP)	((TTCP!=NULL)?TTCP->tpcb[0] : NULL)
+#define GET_CLIENT_TCP(TTCP,ID)	(((TTCP!=NULL)&&(ID>=0)&&(ID<MAX_CLIENT_ACCEPTED))?TTCP->tpcb[ID] : NULL)
+
+
 typedef struct ttcp {
 
 	/* options */
@@ -43,9 +50,10 @@ typedef struct ttcp {
 	uint32_t tid;
 
 	/* TCP specific */
-	struct tcp_pcb* tpcb;
+	struct tcp_pcb* tpcb[MAX_CLIENT_ACCEPTED];
 	struct tcp_pcb* lpcb;
 	char* payload;
+	uint8_t tcp_poll_retries;
 
 	/* UDP specific */
 	int udp_started;
@@ -71,6 +79,16 @@ int sendUdpData(void* p, uint8_t* buf, uint16_t len);
 uint8_t isDataSent(void* p );
 
 cmd_state_t cmd_ttcp(int argc, char* argv[], void* ctx);
+
+int8_t setNewClientConn(struct ttcp* _ttcp, struct tcp_pcb *newpcb, uint8_t id);
+
+int8_t insertNewClientConn(struct ttcp* _ttcp, struct tcp_pcb *newpcb);
+
+int8_t removeNewClientConn(struct ttcp* _ttcp, struct tcp_pcb *newpcb);
+
+bool cleanNewClientConn(struct ttcp* _ttcp);
+
+int8_t getNewClientConnId(struct ttcp* _ttcp, struct tcp_pcb *newpcb);
 
 void closeConnections();
 

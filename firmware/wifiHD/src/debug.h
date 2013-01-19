@@ -118,9 +118,9 @@ Y;	\
 } while (0)
 
 #define IF_DEBUG_POLL(X,Y) do { 			\
-if (pollDebug & INFO_##X##_FLAG) \
+if (pollDebug & INFO_##X##_FLAG) {\
 Y;	\
-} while (0)
+}} while (0)
 
 
 
@@ -142,6 +142,7 @@ Y;	\
 #define INFO_TCP(msg, args...) 		IF_DEBUG(TCP,PRINT_DEBUG(msg, ##args))
 #define INFO_TCP_VER(msg, args...) 	IF_DEBUG_VER(TCP,PRINT_DEBUG(msg, ##args))
 #define INFO_TCP_DUMP(msg, args...) IF_DEBUG_DUMP(TCP,PRINT_DEBUG(msg, ##args))
+#define INFO_TCP_POLL(msg, args...) IF_DEBUG_POLL(TCP,PRINT_DEBUG(msg, ##args))
 #define INFO_SPI(msg, args...) 		IF_DEBUG(SPI,PRINT_DEBUG(msg, ##args))
 #define INFO_SPI_VER(msg, args...) 	IF_DEBUG_VER(SPI,PRINT_DEBUG(msg, ##args))
 #define INFO_SPI_DUMP(msg, args...) IF_DEBUG_DUMP(SPI,PRINT_DEBUG(msg, ##args))
