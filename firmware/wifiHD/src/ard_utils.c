@@ -246,7 +246,8 @@ void ack_recved(void* pcb, int len);
 void ackAndFreeData(void* pcb, int len, uint8_t sock, uint8_t* data)
 {
 	INFO_UTIL("Ack pcb:%p len:%d sock:%d data:%p\n", pcb, len, sock, data);
-	ack_recved(pcb, len);
+	if (!IS_UDP_SOCK(sock))
+		ack_recved(pcb, len);
 	if (data != NULL)
 		freetData(data, sock);
 }

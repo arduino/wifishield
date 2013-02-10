@@ -19,6 +19,7 @@ typedef void (ard_tcp_done_cb_t)(void *opaque, int result);
 
 #define GET_TCP_MODE(X)	((X!=NULL)?((struct ttcp*)(X))->mode:0)
 #define IS_VALID_SOCK(SOCK) ((SOCK>=0)&&(SOCK<MAX_SOCK_NUM))
+#define IS_UDP_SOCK(SOCK)	((getTTCP(SOCK, TTCP_MODE_RECEIVE)!=NULL)?((struct ttcp*)(getTTCP(SOCK, TTCP_MODE_RECEIVE)))->udp:0)
 
 // Maximum number of client connection accepted by server
 #define MAX_CLIENT_ACCEPTED			4
