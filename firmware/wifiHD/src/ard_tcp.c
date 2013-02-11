@@ -179,15 +179,26 @@ static void cleanSockState_cb(void *ctx) {
 /** 
  * Only used in TCP mode.
  */
-static void atcp_conn_err_cb(void *arg, err_t err) {
-	struct ttcp* _ttcp = arg;
 
-	WARN("TTCP [%p]: connection error: %d arg:%p\n",
-			_ttcp, err, arg);
+static err_t close_conn_pcb(struct tcp_pcb* tpcb) {
+
+	tcp_arg(tpcb, NULL);
+	tcp_sent(tpcb, NULL);
+	tcp_recv(tpcb, NULL);
+	err_t err = tcp_close(tpcb);
+
+	INFO_TCP("Closing tpcb[%p]: state:0x%x err:%d\n", tpcb, tpcb->state, err);
+	return err;
+}
+
+static void atcp_conn_err_cb(void *arg, err_t err) {
+	struct tcp_pcb* _tpcp = arg;
+
+	WARN("TTCP [%p]: connection error: %d state:%d\n",
+			_tpcp, err, _tpcp->state);
 
 	if (ifStatus == false)
 		printk("Abort connection\n");
-	cleanSockState_cb(_ttcp);
 
 	atcp_init_pend_flags();
 }
@@ -216,18 +227,13 @@ static void atcp_conn_cli_err_cb(void *arg, err_t err) {
 	atcp_init_pend_flags();
 }
 
-
 static void close_conn(struct ttcp *_ttcp, struct tcp_pcb* tpcb) {
 
 	int8_t id = getNewClientConnId(_ttcp, tpcb);
 	if (id <0) return;
-	tcp_arg(_ttcp->tpcb[id], NULL);
-	tcp_sent(_ttcp->tpcb[id], NULL);
-	tcp_recv(_ttcp->tpcb[id], NULL);
-	err_t err = tcp_close(tpcb);
+	err_t err = close_conn_pcb(_ttcp->tpcb[id]);
 
-	INFO_TCP("Closing tpcb[%p-%p]: state:0x%x err:%d\n",_ttcp->tpcb[id], tpcb, _ttcp->tpcb[id]->state, err);
-	removeNewClientConn(_ttcp, tpcb);
+	removeNewClientConn(_ttcp, _ttcp->tpcb[id]);
 	if (err == ERR_MEM)
 		pending_close = true;
 	else{

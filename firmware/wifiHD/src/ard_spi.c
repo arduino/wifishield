@@ -1355,7 +1355,9 @@ int sendReply(int cmdIdx, char* recv, char* reply, void* resultCmd)
 #endif
     BUSY_FOR_SPI();
 
+    IF_SPI_DUMP(printk("==>"));
     DUMP_SPI(recv, count);
+    IF_SPI_DUMP(printk("<=="));
 	DUMP_SPI(reply, _count);
     replyCount = _count;
     return _result;
