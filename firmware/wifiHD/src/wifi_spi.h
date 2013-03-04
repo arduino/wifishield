@@ -56,6 +56,7 @@ enum {
 	START_SCAN_NETWORKS	= 0x36,
 	GET_FW_VERSION_CMD	= 0x37,
 	GET_TEST_CMD		= 0x38,
+	GET_IDX_BSSID_CMD	= 0x39,
 
     // All command with DATA_FLAG 0x40 send a 16bit Len
 

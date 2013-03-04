@@ -140,6 +140,8 @@ public:
      */
     char*	SSID(uint8_t networkItem);
 
+    uint8_t* BSSID(uint8_t networkItem);
+
     /*
      * Return the encryption type of the networks discovered during the scanNetworks
      *

@@ -949,6 +949,13 @@ cmd_spi_state_t get_reply_idx_net_cb(char* recv, char* reply, void* ctx, uint16_
 				INFO_UTIL("ENCT:%d\n", network_list.net[idx]->enc_type);
 				break;
 			}
+    	case GET_IDX_BSSID_CMD:
+			{
+				len = WL_MAC_ADDR_LENGTH;
+				PUT_BUFDATA_BYTE_REV(network_list.net[idx]->bssid.octet, len, reply, 3);
+				INFO_UTIL("BSSID:0x%x\n", network_list.net[idx]->bssid.octet);
+				break;
+			}
    	}
 
 
@@ -1396,6 +1403,7 @@ void init_spi_cmds() {
 	spi_add_cmd(DISCONNECT_CMD, disconnect_cmd_cb, ack_reply_cb, NULL, CMD_SET_FLAG);
 	spi_add_cmd(GET_IDX_ENCT_CMD, ack_cmd_cb, get_reply_idx_net_cb, (void*)GET_IDX_ENCT_CMD, CMD_GET_FLAG);
 	spi_add_cmd(GET_IDX_SSID_CMD, ack_cmd_cb, get_reply_idx_net_cb, (void*)GET_IDX_SSID_CMD, CMD_GET_FLAG);
+	spi_add_cmd(GET_IDX_BSSID_CMD, ack_cmd_cb, get_reply_idx_net_cb, (void*)GET_IDX_BSSID_CMD, CMD_GET_FLAG);
 	spi_add_cmd(GET_IDX_RSSI_CMD, ack_cmd_cb, get_reply_idx_net_cb, (void*)GET_IDX_RSSI_CMD, CMD_GET_FLAG);
 	spi_add_cmd(REQ_HOST_BY_NAME_CMD, req_reply_host_by_name_cb, ack_reply_cb, NULL, CMD_SET_FLAG);
 	spi_add_cmd(GET_HOST_BY_NAME_CMD, ack_cmd_cb, get_reply_host_by_name_cb, NULL, CMD_GET_FLAG);

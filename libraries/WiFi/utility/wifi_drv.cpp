@@ -349,7 +349,7 @@ uint8_t WiFiDrv::getScanNetworks()
     return ssidListNum;
 }
 
-char* WiFiDrv::getSSIDNetoworks(uint8_t networkItem)
+char* WiFiDrv::getSSIDNetworks(uint8_t networkItem)
 {
 	if (networkItem >= WL_NETWORKS_LIST_MAXNUM)
 		return NULL;
@@ -357,7 +357,28 @@ char* WiFiDrv::getSSIDNetoworks(uint8_t networkItem)
 	return _networkSsid[networkItem];
 }
 
-uint8_t WiFiDrv::getEncTypeNetowrks(uint8_t networkItem)
+uint8_t* WiFiDrv::getBSSIDNetworks(uint8_t networkItem)
+{
+    WAIT_FOR_SLAVE_SELECT();
+
+    // Send Command
+    SpiDrv::sendCmd(GET_IDX_BSSID_CMD, PARAM_NUMS_1);
+
+    SpiDrv::sendParam(&networkItem, 1, LAST_PARAM);
+
+    //Wait the reply elaboration
+    SpiDrv::waitForSlaveReady();
+
+    // Wait for reply
+    uint8_t _dataLen = 0;
+    SpiDrv::waitResponseCmd(GET_IDX_BSSID_CMD, PARAM_NUMS_1, _bssid, &_dataLen);
+
+    SpiDrv::spiSlaveDeselect();
+
+    return _bssid;
+}
+
+uint8_t WiFiDrv::getEncTypeNetworks(uint8_t networkItem)
 {
 	if (networkItem >= WL_NETWORKS_LIST_MAXNUM)
 		return NULL;
@@ -382,7 +403,7 @@ uint8_t WiFiDrv::getEncTypeNetowrks(uint8_t networkItem)
     return encType;
 }
 
-int32_t WiFiDrv::getRSSINetoworks(uint8_t networkItem)
+int32_t WiFiDrv::getRSSINetworks(uint8_t networkItem)
 {
 	if (networkItem >= WL_NETWORKS_LIST_MAXNUM)
 		return NULL;
