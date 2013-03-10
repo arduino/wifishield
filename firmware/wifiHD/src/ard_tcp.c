@@ -33,14 +33,17 @@ extern bool ifStatus;
 
 static int isDataSentCount = 0;
 
-bool pending_close = false;
 bool pending_accept = false;
 
 static err_t tcp_data_sent(void *arg, struct tcp_pcb *pcb, u16_t len);
 
-static void atcp_init_pend_flags()
+static void atcp_init_pend_flags(struct ttcp* _ttcp)
 {
-	pending_close = false;
+	int i = 0;
+	for (; i<MAX_CLIENT_ACCEPTED; ++i)
+	{
+		if (_ttcp) _ttcp->pending_close[i] = false;
+	}		
 	pending_accept = false;
 }
 
@@ -182,25 +185,28 @@ static void cleanSockState_cb(void *ctx) {
 
 static err_t close_conn_pcb(struct tcp_pcb* tpcb) {
 
-	tcp_arg(tpcb, NULL);
-	tcp_sent(tpcb, NULL);
-	tcp_recv(tpcb, NULL);
 	err_t err = tcp_close(tpcb);
+	if (err== ERR_OK)
+	{
+		tcp_arg(tpcb, NULL);
+		tcp_sent(tpcb, NULL);
+		tcp_recv(tpcb, NULL);
+	}
 
 	INFO_TCP("Closing tpcb[%p]: state:0x%x err:%d\n", tpcb, tpcb->state, err);
 	return err;
 }
 
 static void atcp_conn_err_cb(void *arg, err_t err) {
-	struct tcp_pcb* _tpcp = arg;
+	struct ttcp* _ttcp = arg;
 
-	WARN("TTCP [%p]: connection error: %d state:%d\n",
-			_tpcp, err, _tpcp->state);
+	WARN("TTCP [%p]: connection error: %d\n",
+			_ttcp, err);
 
 	if (ifStatus == false)
 		printk("Abort connection\n");
 
-	atcp_init_pend_flags();
+	atcp_init_pend_flags(_ttcp);
 }
 
 static void atcp_conn_cli_err_cb(void *arg, err_t err) {
@@ -224,22 +230,25 @@ static void atcp_conn_cli_err_cb(void *arg, err_t err) {
 		free(_ttcp);
 	}
 
-	atcp_init_pend_flags();
+	atcp_init_pend_flags(_ttcp);
 }
 
-static void close_conn(struct ttcp *_ttcp, struct tcp_pcb* tpcb) {
+static err_t close_conn(struct ttcp *_ttcp, struct tcp_pcb* tpcb) {
 
+	if (_ttcp == NULL) return;
+	
 	int8_t id = getNewClientConnId(_ttcp, tpcb);
-	if (id <0) return;
+	if (id == NO_VALID_ID) return;
 	err_t err = close_conn_pcb(_ttcp->tpcb[id]);
 
-	removeNewClientConn(_ttcp, _ttcp->tpcb[id]);
 	if (err == ERR_MEM)
-		pending_close = true;
+		_ttcp->pending_close[id] = true;
 	else{
-		atcp_init_pend_flags();
+		atcp_init_pend_flags(_ttcp);
+		removeNewClientConn(_ttcp, _ttcp->tpcb[id]);
 		WARN("----------------------\n");
 	}
+	return err;
 }
 
 void closeConnections()
@@ -319,7 +328,7 @@ static err_t atcp_poll(void *arg, struct tcp_pcb *pcb) {
 				pcb, arg, _ttcp->tcp_poll_retries);
 		_ttcp->tcp_poll_retries = 0;
 		tcp_abort(pcb);
-		atcp_init_pend_flags();
+		atcp_init_pend_flags(_ttcp);
 	    return ERR_ABRT;
 	}
 	
@@ -330,22 +339,26 @@ static err_t atcp_poll(void *arg, struct tcp_pcb *pcb) {
 	if (_ttcp->left > 0)
 		INFO_TCP("ARD TCP [%p-%p] arg=%p retries=%d pend.close:%d len:%d\n",
 			(_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0, pcb, arg,
-			_ttcp->tcp_poll_retries, pending_close, (_ttcp)?_ttcp->left:0);
+			_ttcp->tcp_poll_retries, _ttcp->pending_close, (_ttcp)?_ttcp->left:0);
 	tcp_send_data(_ttcp);
 
-	if (pending_close)
-	{
-		err_t err = tcp_close(pcb);
-		if (err == ERR_MEM)
-		{
-			pending_close = true;
-		}
-		else
-		{
-			atcp_init_pend_flags();
-		}
-
-		INFO_TCP("ARD TCP [%p-%p] try to close pending:%d\n", pcb, (_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0, pending_close);
+	int8_t id = getNewClientConnId(_ttcp, pcb);
+	if ((id != NO_VALID_ID) && (_ttcp->pending_close[id]))
+	{		
+		err_t err = ERR_OK;
+		if (id >=0){
+			err = tcp_close(pcb);
+			if (err == ERR_MEM)
+			{
+				_ttcp->pending_close[id] = true;
+			}
+			else
+			{
+				atcp_init_pend_flags(_ttcp);
+			}
+		}	
+		INFO_TCP("ARD TCP [%p-%p] try to close pending:%d err:%d id:%d\n", pcb, 
+			(_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0, _ttcp->pending_close[id], err, id);
 	}
 	return ERR_OK;
 }
@@ -355,8 +368,12 @@ static err_t atcp_poll_conn(void *arg, struct tcp_pcb *pcb) {
 
 	if (_ttcp == NULL) return ERR_ARG;
 
-	if (pending_close)
-		++(_ttcp->tcp_poll_retries);
+	int8_t id = getNewClientConnId(_ttcp, pcb);
+	if (id != NO_VALID_ID)
+	{
+		if (_ttcp->pending_close[id])
+			++(_ttcp->tcp_poll_retries);
+	}
 
 	if (_ttcp->tcp_poll_retries > 8) {
 		WARN("ARD TCP [%p-%p] arg=%p retries=%d\n",
@@ -368,16 +385,16 @@ static err_t atcp_poll_conn(void *arg, struct tcp_pcb *pcb) {
 
 	INFO_TCP_POLL("ARD TCP [%p-%p] arg=%p retries=%d pend.close:%d conn:%d\n",
 			(_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0, pcb, arg,
-			_ttcp->tcp_poll_retries, pending_close, _connected);
+			_ttcp->tcp_poll_retries, _ttcp->pending_close[id], _connected);
 
 	if ((_ttcp)&&(_connected)) tcp_send_data(_ttcp);
 
-	if (pending_close)
+	if ((id != NO_VALID_ID) && (_ttcp->pending_close[id]))
 	{
 		err_t err = tcp_close(pcb);
 		if (err == ERR_MEM)
 		{
-			pending_close = true;
+			_ttcp->pending_close[id] = true;
 		}
 		else
 		{
@@ -385,11 +402,11 @@ static err_t atcp_poll_conn(void *arg, struct tcp_pcb *pcb) {
 			if (_ttcp->payload)
 				free(_ttcp->payload);
 			free(_ttcp);
-			pending_close = false;
+			_ttcp->pending_close[id] = false;
 
 		}
 
-		INFO_TCP("ARD TCP [%p-%p] try to close pending:%d\n", pcb, (_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0, pending_close);
+		INFO_TCP("ARD TCP [%p-%p] try to close pending:%d\n", pcb, (_ttcp)?GET_FIRST_CLIENT_TCP(_ttcp):0, _ttcp->pending_close[id]);
 	}
 	return ERR_OK;
 }
@@ -407,6 +424,7 @@ int8_t getNewClientConnId(struct ttcp* _ttcp, struct tcp_pcb *newpcb)
 			}				
 		}
 	}
+	WARN("No Valid Id for ttcp:%p pcb:%p\n");
 	return NO_VALID_ID;
 }
 
@@ -526,7 +544,7 @@ static int atcp_start(struct ttcp* ttcp) {
 	}
 
 	tcp_arg(p, ttcp);
-	atcp_init_pend_flags();
+	atcp_init_pend_flags(ttcp);
 
 	if (ttcp->mode == TTCP_MODE_TRANSMIT) {
 		setNewClientConn(ttcp, p, 0);
@@ -774,12 +792,17 @@ void ard_tcp_stop(void* ttcp) {
     	_ttcp->tcp_poll_retries = 0;
 	}else{
 		DUMP_TCP_STATE(_ttcp);
+
 		int i = 0;
 		for (; i<MAX_CLIENT_ACCEPTED; ++i)
 		{
 			if ((_ttcp)&&(_ttcp->tpcb[i])&&(_ttcp->tpcb[i]->state!=LAST_ACK)&&(_ttcp->tpcb[i]->state!=CLOSED))
 			{
-				close_conn(_ttcp, _ttcp->tpcb[i]);
+				// Flush all the data
+				err_t err=tcp_output(_ttcp->tpcb[i]);
+				INFO_TCP("flush data: tpcb:%p err:%d\n", _ttcp->tpcb[i], err);
+				// if any socket  cannot be close stop the close connection
+				if (close_conn(_ttcp, _ttcp->tpcb[i]) != ERR_OK) break;
 			}		
 		}
 

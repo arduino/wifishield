@@ -55,6 +55,7 @@ typedef struct ttcp {
 	struct tcp_pcb* lpcb;
 	char* payload;
 	uint8_t tcp_poll_retries;
+	bool pending_close[MAX_CLIENT_ACCEPTED];
 
 	/* UDP specific */
 	int udp_started;
