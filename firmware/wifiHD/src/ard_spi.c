@@ -1204,13 +1204,13 @@ cmd_spi_state_t avail_data_tcp_cmd_cb(char* recv, char* reply, void* ctx, uint16
 	CHECK_ARD_NETIF(recv, reply, count);
 
 	CREATE_HEADER_REPLY(reply, recv, PARAM_NUMS_1);
-	uint8_t dataAvail = 0;
+	uint16_t dataAvail = 0;
     if ((recv[3]==1)&&(recv[4]>=0)&&(recv[4]<MAX_SOCK_NUM))
     {
-    	dataAvail = isAvailTcpDataByte((uint8_t)recv[4]) ? 1 : 0;
+    	dataAvail = getAvailTcpDataByte((uint8_t)recv[4]);
     }
-	PUT_DATA_BYTE(dataAvail, reply, 3);
-	END_HEADER_REPLY(reply, 5, *count);
+	PUT_DATA_INT_NO(dataAvail, reply, 3);
+	END_HEADER_REPLY(reply, 6, *count);
 
 	INFO_SPI_POLL("dataAvail:%d\n", dataAvail);
 

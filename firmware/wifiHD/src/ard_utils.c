@@ -273,6 +273,12 @@ bool isAvailTcpDataByte(uint8_t sock)
 	return false;
 }
 
+uint16_t getAvailTcpDataByte(uint8_t sock)
+{
+	uint16_t len = calcMergeLen(sock);
+	INFO_UTIL("Availabled data: %d\n", len);
+	return len;
+}
 
 
 bool getTcpDataByte(uint8_t sock, uint8_t* payload, uint8_t peek)

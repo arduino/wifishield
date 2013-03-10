@@ -130,6 +130,13 @@
     BYTE[IDX+2] = (uint8_t)(_int & 0xff);              	\
 }
 
+#define PUT_DATA_INT_NO(INT, BYTE, IDX)   {           		\
+    uint16_t _int = INT;								\
+	BYTE[IDX] = 2;                            			\
+    BYTE[IDX+2] = (uint8_t)((_int & 0xff00)>>8);       	\
+    BYTE[IDX+1] = (uint8_t)(_int & 0xff);              	\
+}
+
 #define PUT_DATA_BYTE(DATA, BYTE, IDX)   {           	\
     BYTE[IDX] = 1;                                      \
     BYTE[IDX+1] = (uint8_t)DATA;						\
@@ -235,9 +242,10 @@
 #endif
 
 #define DUMP_TCP_STATE(TTCP) do {\
-		INFO_TCP("ttcp:%p tpcb:%p state:%d lpcb:%p state:%d\n", \
+		INFO_TCP("ttcp:%p tpcb:%p state:%d lpcb:%p state:%d left:%d sent:%d\n", \
 			TTCP, TTCP->tpcb[0], (TTCP->tpcb[0])?TTCP->tpcb[0]->state:0, \
-			TTCP->lpcb, (TTCP->lpcb)?TTCP->lpcb->state:0); \
+			TTCP->lpcb, (TTCP->lpcb)?TTCP->lpcb->state:0, \
+			(TTCP)?TTCP->left:0, (TTCP)?TTCP->buff_sent:0); \
 			} while(0);
 			
 #define Mode2Str(_Mode) ((_Mode==0)?"TRANSMIT":"RECEIVE")			
@@ -274,6 +282,8 @@ bool isBufAvail();
 bool getTcpData(uint8_t sock, void** payload, uint16_t* len);
 
 bool getTcpDataByte(uint8_t sock, uint8_t* payload, uint8_t peek);
+
+uint16_t getAvailTcpDataByte(uint8_t sock);
 
 bool isAvailTcpDataByte(uint8_t sock);
 
