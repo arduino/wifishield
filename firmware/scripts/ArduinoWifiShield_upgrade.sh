@@ -23,7 +23,7 @@ upgradeHDmodule () {
   dfu-programmer at32uc3a1256 erase
   dfu-programmer at32uc3a1256 flash --suppress-bootloader-mem $WIFI_FW_PATH/wifi_dnld.hex
   dfu-programmer at32uc3a1256 start
-  echo -n "\nRemove the J3 jumper then press the RESET button on the shield then type [ENTER] to upgrade the firmware of the shield..\n"
+  echo -n "\nPress the RESET button on the shield then type [ENTER] to upgrade the firmware of the shield..\n"
   read readEnter
 }
 
