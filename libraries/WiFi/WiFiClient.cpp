@@ -106,7 +106,7 @@ int WiFiClient::read() {
 int WiFiClient::read(uint8_t* buf, size_t size) {
   if (!ServerDrv::getDataBuf(_sock, buf, &size))
       return -1;
-  return 0;
+  return size;
 }
 
 int WiFiClient::peek() {
