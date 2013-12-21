@@ -172,9 +172,23 @@ bool getTcpData(uint8_t sock, void** payload, uint16_t* len)
 	p = get_pBuf(sock);
 	if (p != NULL)
 	{
-		*payload = p->data;
-		*len = p->len;
+		if (p->idx < p->len)
+		{
+		uint8_t* buf = (uint8_t*)p->data;
+		
+		
+		*payload = &buf[p->idx];
+		*len = min(p->len - p->idx, *len);
+		INFO_UTIL_VER("get:%d %p %d %d\n",p->idx, p->data, *payload, *len);
+		p->idx += *len;
 		return true;
+		}
+		else
+		{
+		*payload = p->data;
+		*len = 0;
+		return true;
+		}
 	}
 	return false;
 }

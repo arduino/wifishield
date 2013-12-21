@@ -1195,10 +1195,14 @@ cmd_spi_state_t get_data_tcp_cmd_cb(char* recv, char* reply, void* ctx, uint16_t
 cmd_spi_state_t get_databuf_tcp_cmd_cb(char* recv, char* reply, void* ctx, uint16_t* count) {
 
 	uint8_t* data;
-	uint16_t len;
 
     CHECK_ARD_NETIF(recv, reply, count);
 
+    tParam* params = (tParam*)&recv[3];
+	
+    GET_PARAM_NEXT(BYTE, params, _sock);
+    GET_PARAM_NEXT(INT, params, len);
+	
     if ((recv[3]==1)&&(recv[4]>=0)&&(recv[4]<MAX_SOCK_NUM))
     {
     	if (getTcpData((uint8_t)recv[4], (void**)&data, &len))

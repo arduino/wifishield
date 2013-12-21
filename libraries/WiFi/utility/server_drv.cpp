@@ -177,8 +177,9 @@ bool ServerDrv::getDataBuf(uint8_t sock, uint8_t *_data, uint16_t *_dataLen)
 {
 	WAIT_FOR_SLAVE_SELECT();
     // Send Command
-    SpiDrv::sendCmd(GET_DATABUF_TCP_CMD, PARAM_NUMS_1);
-    SpiDrv::sendBuffer(&sock, sizeof(sock), LAST_PARAM);
+    SpiDrv::sendCmd(GET_DATABUF_TCP_CMD, PARAM_NUMS_2);
+    SpiDrv::sendBuffer(&sock, sizeof(sock));
+    SpiDrv::sendParam(*_datalen, LAST_PARAM);
 
     //Wait the reply elaboration
     SpiDrv::waitForSlaveReady();
